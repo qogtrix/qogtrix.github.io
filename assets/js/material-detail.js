@@ -120,7 +120,7 @@
       }
       sel.innerHTML = projects.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('');
     }).catch(function () {
-      el('select-result').textContent = 'Could not reach the backend — start it with cd backend && python3 app.py, then try again.';
+      el('select-result').textContent = 'Could not reach the backend — the hosted server sleeps when idle; wait a minute and try again.';
     });
     el('select-add').addEventListener('click', function () {
       var pid = el('select-project').value;

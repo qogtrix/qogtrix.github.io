@@ -9,10 +9,10 @@ const API = (window.AIELAB_API_BASE || "http://127.0.0.1:8001");
 const token = () => localStorage.getItem("aielab.token");
 const $ = (id) => document.getElementById(id);
 async function api(path, opts = {}) {
-  const r = await fetch(API + path, {
+  const r = await (window.aielabFetchWithWake || fetch)(API + path, {
     ...opts,
     headers: { "Content-Type": "application/json", ...(token() ? { Authorization: "Bearer " + token() } : {}), ...(opts.headers || {}) },
-  });
+  }, (attempt) => { const el = $("circuit-status"); if (el) el.textContent = "Waking the server… (retry " + attempt + ")"; });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
   return body;
@@ -54,14 +54,17 @@ async function loadProjects() {
     const data = await api("/api/v1/projects");
     for (const p of data.projects || []) {
       const o = document.createElement("option");
-      o.value = p.id; o.textContent = p.title + " (" + (p.lab || "general") + ")";
+      o.value = p.id; o.textContent = (p.name || p.id) + " (" + (p.lab || "general") + ")";
       $("project-select").appendChild(o);
     }
+    // Re-open the project this browser used last, when signed in.
+    const last = localStorage.getItem("aielab.last_project");
+    if (last && [...$("project-select").options].some((o) => o.value === last)) { $("project-select").value = last; projectId = last; }
   } catch { /* guest / backend down: designer still works */ }
   const q = new URLSearchParams(location.search);
   if (q.get("project")) { $("project-select").value = q.get("project"); projectId = q.get("project"); }
 }
-$("project-select").addEventListener("change", (e) => { projectId = e.target.value || null; });
+$("project-select").addEventListener("change", (e) => { projectId = e.target.value || null; if (e.target.value) localStorage.setItem("aielab.last_project", e.target.value); else localStorage.removeItem("aielab.last_project"); });
 loadProjects();
 
 /* ---------- component definitions ---------- */
@@ -424,7 +427,7 @@ document.querySelectorAll("[data-analysis]").forEach((el) => { el.style.display 
 $("btn-run").addEventListener("click", async () => {
   const errors = validateLocal();
   if (errors.length) { $("sim-results").innerHTML = "<p class='warn-list'>" + errors.map(esc).join("<br>") + "</p>"; return; }
-  if (backendDown) { $("sim-results").innerHTML = "<p class='warn-list'>The backend is not reachable — sign-in and simulation both need it. Start it with <code>cd backend && python3 app.py</code>.</p>"; return; }
+  if (backendDown) { $("sim-results").innerHTML = "<p class='warn-list'>The backend is not reachable — sign-in and simulation both need it. The hosted server sleeps when idle; if it stays down, wait a minute and try again.</p>"; return; }
   if (!projectId) { $("sim-results").innerHTML = "<p>Sign in and pick a project to run the simulation — the solver runs on the backend and stores the result as a job on that project. The circuit itself is saved in your browser.</p>"; return; }
   const type = $("analysis-type").value;
   const analysis = { type };
@@ -438,7 +441,7 @@ $("btn-run").addEventListener("click", async () => {
     renderSimResults(res.values);
     $("sim-warnings").textContent = (res.values.warnings || []).join(" ");
   } catch (err) {
-    $("sim-results").innerHTML = "<p class='warn-list'>Could not run: " + esc(err.message) + " — is the backend running? (cd backend && python3 app.py)</p>";
+    $("sim-results").innerHTML = "<p class='warn-list'>Could not run: " + esc(err.message) + " — is the backend reachable? The hosted server sleeps when idle and can take a minute to wake.</p>";
   }
 });
 function renderSimResults(v) {
@@ -543,7 +546,7 @@ async function loadSolvers() {
       sel.appendChild(o);
     }
     renderCalcForm();
-  } catch { backendDown = true; $("calc-form").innerHTML = "<p class='warn-list'>Backend not reachable — start it with <code>cd backend && python3 app.py</code>.</p>"; }
+  } catch { backendDown = true; $("calc-form").innerHTML = "<p class='warn-list'>Backend not reachable — the hosted server sleeps when idle; wait a minute and reload the page.</p>"; }
 }
 function renderCalcForm() {
   const id = $("calc-solver").value;
@@ -557,7 +560,7 @@ function renderCalcForm() {
 $("calc-solver").addEventListener("change", renderCalcForm);
 $("btn-calc-run").addEventListener("click", async () => {
   const id = $("calc-solver").value;
-  if (backendDown) { $("calc-results").innerHTML = "<p class='warn-list'>The backend is not reachable — start it with <code>cd backend && python3 app.py</code>.</p>"; return; }
+  if (backendDown) { $("calc-results").innerHTML = "<p class='warn-list'>The backend is not reachable — the hosted server sleeps when idle; wait a minute and try again.</p>"; return; }
   if (!projectId) { $("calc-results").innerHTML = "<p>Sign in and pick a project to run and store the calculation.</p>"; return; }
   const inputs = {};
   document.querySelectorAll("input[data-calc]").forEach((inp) => {

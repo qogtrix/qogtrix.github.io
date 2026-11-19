@@ -26,6 +26,23 @@
     return res.json();
   }
 
+  // --- Hosted backend (Stage 11 deployment): the site talks to the
+  // Render backend when the user is signed in. Requests use the same
+  // wake-aware fetch as the labs, so a sleeping free-tier server
+  // wakes up instead of failing the first call.
+  var API_BASE = (window.AIELAB_API_BASE || 'http://127.0.0.1:8001');
+  function apiToken() { try { return localStorage.getItem('aielab.token') || ''; } catch (e) { return ''; } }
+  async function apiJSON(path, opts) {
+    var doFetch = window.aielabFetchWithWake || fetch;
+    var res = await doFetch(API_BASE + path, Object.assign({
+      headers: { 'Content-Type': 'application/json', 'Authorization': apiToken() ? 'Bearer ' + apiToken() : '' }
+    }, opts || {}));
+    var data = {};
+    try { data = await res.json(); } catch (e) { /* empty body */ }
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
   // --- Navigation: hamburger + active link ---
   var burger = document.getElementById('hamburger');
   var sidebar = document.getElementById('sidebar');
@@ -87,11 +104,11 @@
       var labs = await fetchJSON('data/labs.json');
       var mats = await fetchJSON('data/materials.json');
       var comps = await fetchJSON('data/components.json');
-      var projects = loadProjects();
       if (counts) {
         counts.innerHTML =
           stat(labs.labs.length, 'Laboratories') + stat(mats.materials.length, 'Materials in database') +
-          stat(comps.components.length, 'Components in library') + stat(projects.length, 'Your projects (this browser)');
+          stat(comps.components.length, 'Components in library') + stat('…', apiToken() ? 'Your projects (on the server)' : 'Your projects (this browser)');
+        refreshProjectCount();
       }
       if (grid) {
         grid.innerHTML = labs.labs.map(function (lab) {
@@ -101,6 +118,29 @@
     } catch (e) {
       if (counts) counts.innerHTML = '<div class="notice err">Could not load dashboard data: ' + e.message + '. Serve the site over HTTP (see docs/RUN_DEPLOY.md) and reload.</div>';
       if (grid) grid.innerHTML = '';
+    }
+  }
+  // Fill in the project count once the server answers (or fall back
+  // to the local list). Kept separate so a sleeping backend never
+  // holds up the rest of the dashboard.
+  async function refreshProjectCount() {
+    var counts = document.getElementById('counts');
+    if (!counts || counts.children.length < 4) return;
+    var num = counts.children[3].querySelector('.stat-num');
+    var lab = counts.children[3].querySelector('.stat-label');
+    if (!num) return;
+    if (!apiToken()) {
+      num.textContent = loadProjects().length;
+      if (lab) lab.textContent = 'Your projects (this browser)';
+      return;
+    }
+    try {
+      var data = await apiJSON('/api/v1/projects');
+      num.textContent = (data.projects || []).length;
+      if (lab) lab.textContent = 'Your projects (on the server)';
+    } catch (e) {
+      num.textContent = loadProjects().length;
+      if (lab) lab.textContent = 'Your projects (this browser — server unreachable)';
     }
   }
   function stat(n, label) {
@@ -115,15 +155,52 @@
     try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(list)); return true; }
     catch (e) { showError('Could not save project: ' + e.message); return false; }
   }
-  function renderProjects() {
+  // --- Projects: the signed-in user's server projects, or the local
+  // (guest) list. Opening a server project remembers it as the
+  // last-used project, so the lab re-opens it (see aielab.last_project).
+  var LAB_PAGES = { mechanical: 'mechanical.html', electrical: 'electrical.html', structural: 'structural.html', aerospace: 'aerospace.html', robotics: 'robotics.html', materials: 'materials.html', general: 'projects.html' };
+  function renderServerProjects(list) {
     var listEl = document.getElementById('project-list');
     if (!listEl) return;
-    var list = loadProjects();
+    var sub = document.getElementById('projects-sub');
+    if (sub) sub.textContent = '— saved on the server under your account';
     if (!list.length) {
-      listEl.innerHTML = '<p class="muted">No projects yet. Create one below — it is stored in this browser only.</p>';
+      listEl.innerHTML = '<p class="muted">No projects yet on the server. Create one below — it will be saved to your account.</p>';
       return;
     }
     listEl.innerHTML = list.map(function (p) {
+      var page = LAB_PAGES[p.lab] || 'projects.html';
+      var href = page + '?project=' + encodeURIComponent(p.id);
+      return '<div class="card" style="margin-bottom:10px"><b>' + esc(p.name) + '</b> <span class="pill">' + esc(p.lab) + '</span> <span class="small muted">' + esc(p.updated_at || p.created_at || '') + '</span><p class="small">' + esc(p.description || '') + '</p><div class="btn-row"><a href="' + href + '" data-open-project="' + p.id + '"><button class="secondary">Open in lab</button></a></div></div>';
+    }).join('');
+    listEl.querySelectorAll('[data-open-project]').forEach(function (a) {
+      a.addEventListener('click', function () {
+        try { localStorage.setItem('aielab.last_project', a.getAttribute('data-open-project')); } catch (e) { /* ignore */ }
+      });
+    });
+  }
+  async function renderProjects() {
+    var listEl = document.getElementById('project-list');
+    if (!listEl) return;
+    var serverNote = '';
+    if (apiToken()) {
+      listEl.innerHTML = '<p class="muted">Loading your projects from the server…</p>';
+      try {
+        var data = await apiJSON('/api/v1/projects');
+        renderServerProjects(data.projects || []);
+        return;
+      } catch (e) {
+        serverNote = '<p class="muted">Could not reach the server (' + esc(e.message) + ') — showing the projects stored in this browser instead.</p>';
+      }
+    }
+    var sub = document.getElementById('projects-sub');
+    if (sub) sub.textContent = '— stored in this browser only (sign in to save them on the server)';
+    var list = loadProjects();
+    if (!list.length) {
+      listEl.innerHTML = serverNote + '<p class="muted">No projects yet. Create one below — it is stored in this browser only.</p>';
+      return;
+    }
+    listEl.innerHTML = serverNote + list.map(function (p) {
       return '<div class="card" style="margin-bottom:10px"><b>' + esc(p.name) + '</b> <span class="pill">' + esc(p.lab) + '</span> <span class="small muted">' + esc(p.created_at || '') + '</span><p class="small">' + esc(p.description || '') + '</p><div class="btn-row"><button class="secondary" data-export="' + p.id + '">Export JSON</button><button class="danger" data-delete="' + p.id + '">Delete</button></div></div>';
     }).join('');
     listEl.querySelectorAll('[data-delete]').forEach(function (b) {
@@ -155,6 +232,13 @@
       var lab = document.getElementById('project-lab').value;
       var desc = document.getElementById('project-desc').value.trim();
       if (!name) { alert('Give the project a name.'); return; }
+      if (apiToken()) {
+        // Signed in: create on the server, where every lab reads it.
+        apiJSON('/api/v1/projects', { method: 'POST', body: JSON.stringify({ name: name, description: desc, lab: lab }) })
+          .then(function () { form.reset(); renderProjects(); renderDashboard(); })
+          .catch(function (err) { showError('Could not create the project on the server: ' + err.message); });
+        return;
+      }
       var list = loadProjects();
       list.unshift({ id: 'p' + Date.now().toString(36), name: name, lab: lab, description: desc, created_at: new Date().toISOString().slice(0, 10) });
       if (saveProjects(list)) { form.reset(); renderProjects(); renderDashboard(); }

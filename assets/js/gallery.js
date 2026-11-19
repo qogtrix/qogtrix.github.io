@@ -31,7 +31,7 @@
       });
     } catch (e) {
       list.innerHTML = '';
-      if (err) { err.style.display = 'block'; err.textContent = 'Could not load the gallery: ' + e.message + ' — start the backend (cd backend && python3 app.py) or use the hosted app.'; }
+      if (err) { err.style.display = 'block'; err.textContent = 'Could not load the gallery: ' + e.message + ' — the hosted backend may be waking up; wait a minute and reload.'; }
     }
   }
   async function viewProject(id) {

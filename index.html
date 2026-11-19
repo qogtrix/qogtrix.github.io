@@ -50,7 +50,7 @@
   <main class="content">
     <section class="hero">
       <h1>AI Engineering Laboratory</h1>
-      <p>A platform where an AI agent will one day design, model, simulate, analyse, test and improve engineering systems. <strong>Stages 1–11 are live:</strong> the dashboard, six laboratories, a real 3D workspace, a materials database and a component library, plus accounts and per-user projects, real analytical solvers in every lab, and an AI Engineering Assistant that answers in plain language by running those solvers. The backend runs locally — start it with <code>cd backend && python3 app.py</code> to sign in and save.</p>
+      <p>A platform where an AI agent will one day design, model, simulate, analyse, test and improve engineering systems. <strong>Stages 1–11 are live:</strong> the dashboard, six laboratories, a real 3D workspace, a materials database and a component library, plus accounts and per-user projects, real analytical solvers in every lab, and an AI Engineering Assistant that answers in plain language by running those solvers. The backend is hosted — <a href="auth.html">sign in</a> to save your projects and use every lab from any browser.</p>
       <div class="btn-row">
         <a href="workspace.html"><button>Open 3D Workspace →</button></a>
         <a href="materials.html"><button class="secondary">Browse Materials</button></a>
@@ -65,7 +65,7 @@
     <h2>System status <span class="small muted">— real checks, run in your browser now</span></h2>
     <div class="grid cols-2" id="system-status"><p class="muted">Checking…</p></div>
 
-    <h2>Your projects <span class="small muted">— stored in this browser only, no account</span></h2>
+    <h2>Your projects <span class="small muted" id="projects-sub">— sign in to save them on the server</span></h2>
     <div class="card">
       <form id="project-form">
         <div class="toolbar">
@@ -85,7 +85,7 @@
     <h2>What Stage 1 does — and does not do</h2>
     <div class="grid cols-2">
       <div class="card"><h3>✓ Works now</h3><p>Navigation, dashboard, six lab pages, real 3D modelling workspace (parametric geometry, CSG booleans, assemblies, STL/OBJ/GLB export), a Simulation Workspace (Rapier rigid-body dynamics + analytical beam/thermal/fluid solvers), a Mechanical Laboratory (gear trains, crank-slider, 11 mechanical solvers, bill of materials), an Electrical Laboratory (real MNA circuit simulator, schematic editor, motors and batteries), a Structural Laboratory (real direct-stiffness solver, buckling and modal analysis, IS 875 / IS 1893 calculators), an Aerospace Laboratory (thin-airfoil + lifting-line performance, Tsiolkovsky delta-v, Barrowman stability, trajectories), a Robotics Laboratory (DH kinematics, IK, PID control, collision checks, mobile robots), and an AI Engineering Assistant (plain-language questions answered by the real solvers, with provenance labels and approval-gated project changes), Material Library with 38 materials across 10 categories (search, favorites, comparison, recommender), component library, project creation and JSON export.</p></div>
-      <div class="card"><h3>✕ Not yet</h3><p>Plate/shell/solid FEA, CFD, and a hosted production backend — the backend runs on your own machine for now, so the live site is a static frontend until you start it locally. No code-compliance checking (IS 800 / IS 456 / AISC / Eurocodes) and nothing here is validated for manufacturing or construction. See <a href="docs/STATUS.md">STATUS.md</a>.</p></div>
+      <div class="card"><h3>✕ Not yet</h3><p>Plate/shell/solid FEA and CFD. The backend is now hosted, so the live site is fully functional — sign in and every lab works from any browser. No code-compliance checking (IS 800 / IS 456 / AISC / Eurocodes) and nothing here is validated for manufacturing or construction. See <a href="docs/STATUS.md">STATUS.md</a>.</p></div>
     </div>
     <p class="small muted" style="margin-top:16px">Hosting: GitHub Pages (<code>qogtrix.github.io</code>). Custom domain <code>qogtrix.is-a.dev</code> goes live after is-a.dev PR #61755 is merged — see <a href="docs/RUN_DEPLOY.md">Run &amp; Deploy</a>.</p>
   </main>

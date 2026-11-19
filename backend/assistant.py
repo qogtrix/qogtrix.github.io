@@ -185,6 +185,7 @@ UNIT_TABLE = [
     ("kV", 1000.0, "voltage"), ("V", 1.0, "voltage"),
     ("mA", 0.001, "current"), ("A", 1.0, "current"),
     ("kΩ", 1000.0, "resistance"), ("ohm", 1.0, "resistance"),
+    ("ohms", 1.0, "resistance"),
     ("Ω", 1.0, "resistance"), ("kohm", 1000.0, "resistance"),
     ("uF", 1e-6, "capacitance"), ("µF", 1e-6, "capacitance"),
     ("nF", 1e-9, "capacitance"), ("pF", 1e-12, "capacitance"),
@@ -303,10 +304,15 @@ def _extract_params(text, specs):
             if m:
                 inputs[spec["key"]] = spec["cast"](m.group(1))
                 break
-    # 2. alias keyword + nearest number after it. A number whose
-    #    unit kind matches the param is preferred over a bare number,
-    #    so a dimension like "0.1x0.2 m" never steals a load or a
-    #    torque.
+    # 2. alias keyword + nearest number after it. A number only binds
+    #    to a param when its unit kind is compatible: a unit-bound
+    #    number (e.g. "10 Nm") belongs to a param of that kind and
+    #    must never be stolen as a bare count, and a bare number must
+    #    never fill a param whose kind is known from its alias.
+    #    Without this, "torque" in "calculate the torque for this
+    #    gearbox: gear train 20 and 40 teeth, 1000 rpm, 10 Nm"
+    #    grabbed the bare 20 (a tooth count) as the input torque,
+    #    and the teeth then shifted to 40/10.
     for spec in specs:
         if spec["key"] in inputs:
             continue
@@ -323,9 +329,19 @@ def _extract_params(text, specs):
                         # Distance from the alias word, either side.
                         dist = (n["pos"] - m.end()) if after else (m.start() - n["num_end"])
                         cands.append((dist, n))
-                kind_match = [c for c in cands if spec["kind"] is not None
-                              and c[1]["kind"] == spec["kind"]]
-                pool = kind_match or [c for c in cands if c[1]["kind"] is None]
+                pool = [c for c in cands
+                        if (spec["kind"] is None and c[1]["kind"] is None)
+                        or c[1]["kind"] == spec["kind"]]
+                if not pool and spec["kind"] is not None:
+                    # The alias names the param directly ("R1 1k",
+                    # "load 5"), so a bare number right next to it is
+                    # the value — but only when it is adjacent. A bare
+                    # number a whole clause away ("torque … 20 teeth")
+                    # is not; it belongs to whatever it actually counts.
+                    pool = [c for c in cands
+                            if c[1]["kind"] is None
+                            and ((0 <= c[1]["pos"] - m.end() <= 10)
+                                 or (0 <= m.start() - c[1]["num_end"] <= 6))]
                 if pool:
                     cand = min(pool, key=lambda c: c[0])[1]
                     if best is None or cand["pos"] < best["pos"]:
@@ -335,9 +351,21 @@ def _extract_params(text, specs):
         if best is not None:
             inputs[spec["key"]] = _to_param_unit(spec, best)
             used.add(numbers.index(best))
-    # 3. remaining numbers in order, matched by unit kind.
+    # 3. remaining numbers in order, matched by unit kind first.
+    # Pass A binds each number to a param of the same kind (bare
+    # numbers to kind-less params such as tooth counts); pass B lets
+    # a still-empty param take a bare number ("load 5" with no unit)
+    # or a unit-bound number whose kind no still-empty param claims
+    # ("300 s" for isp_s, whose spec declares no kind). A unit-bound
+    # number is never taken while a param of its kind is still empty,
+    # so "10 Nm" can never land in a tooth count while the torque
+    # param is unfilled.
     # Optional params that already have a default are skipped here
     # so they cannot steal a number meant for a required param.
+    def _kind_ok(spec, n):
+        if spec["kind"] is None:
+            return n["kind"] is None
+        return n["kind"] == spec["kind"]
     for spec in specs:
         if spec["key"] in inputs:
             continue
@@ -346,7 +374,21 @@ def _extract_params(text, specs):
         for i, n in enumerate(numbers):
             if i in used:
                 continue
-            if spec["kind"] is None or n["kind"] is None or n["kind"] == spec["kind"]:
+            if _kind_ok(spec, n):
+                inputs[spec["key"]] = _to_param_unit(spec, n)
+                used.add(i)
+                break
+    for spec in specs:
+        if spec["key"] in inputs:
+            continue
+        if spec["optional"] and spec["default"] is not None:
+            continue
+        claimed = {s["kind"] for s in specs
+                   if s["key"] not in inputs and s["kind"] is not None}
+        for i, n in enumerate(numbers):
+            if i in used:
+                continue
+            if n["kind"] is None or n["kind"] not in claimed:
                 inputs[spec["key"]] = _to_param_unit(spec, n)
                 used.add(i)
                 break

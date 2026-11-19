@@ -154,10 +154,15 @@ def main():
           and msg["tool_calls"] == [], str(msg)[:200])
 
     # 2. mechanical calculation via the existing engine ------------------
+    # The values must be exactly right, not just present as substrings:
+    # the old extractor misassigned the numbers (torque 20, z1 40,
+    # z2 10) and still produced "19" and "500" somewhere in the text.
     s, m = send("calculate the torque for this gearbox: gear train 20 and 40 teeth, 1000 rpm, 10 Nm")
     msg = m["message"]
-    check("2. gear train runs the mechanical solver",
-          s == 201 and "19" in msg["content"] and "500" in msg["content"]
+    check("2. gear train runs the mechanical solver (ratio 2, 500 rpm, 19 N·m)",
+          s == 201 and "- Gear ratio: 2.000" in msg["content"]
+          and "- Output speed: 500.00 rpm" in msg["content"]
+          and "- Output torque: 19.000 N·m" in msg["content"]
           and msg["provenance"] == "verified calculation"
           and msg["tool_calls"][0]["tool"] == "gear_train"
           and msg["tool_calls"][0]["status"] == "completed", str(msg)[:300])

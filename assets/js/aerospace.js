@@ -40,7 +40,8 @@ async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const t = token();
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  const res = await fetch(API + path, { ...opts, headers });
+  const res = await (window.aielabFetchWithWake || fetch)(API + path, { ...opts, headers },
+    (attempt) => status('Waking the server… (retry ' + attempt + ')'));
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;
@@ -75,10 +76,15 @@ async function loadProjects() {
     const list = data.projects || [];
     sel.innerHTML = '<option value="">(guest — design saved locally only)</option>' +
       list.map((p) => `<option value="${esc(p.id)}">${esc(p.name || p.id)}</option>`).join('');
+    // Re-open the project this browser used last, when signed in.
+    const last = localStorage.getItem('aielab.last_project');
+    if (last && list.some((p) => p.id === last)) { sel.value = last; loadProjectDesign(); }
   } catch (e) { sel.innerHTML = '<option value="">(could not load projects)</option>'; }
 }
 async function loadProjectDesign() {
   S.projectId = $('project-select').value;
+  if (S.projectId) localStorage.setItem('aielab.last_project', S.projectId);
+  else localStorage.removeItem('aielab.last_project');
   S.lastResults = null;
   if (!S.projectId) { loadGuest(); applyDesignToEditors(); renderAll(); return; }
   try {
@@ -384,6 +390,7 @@ async function runPerformance() {
   $('perf-status').textContent = 'Running…';
   try {
     const values = await runAnalyze(S.kind === 'multirotor' ? 'multirotor' : 'aircraft');
+    if (!values) return;  // runAnalyze already said why (e.g. no project picked)
     S.lastResults = values; S.lastKind = S.kind;
     $('perf-status').textContent = 'Done.';
     renderPerf(values);
@@ -391,6 +398,10 @@ async function runPerformance() {
   } catch (e) { $('perf-status').textContent = 'Failed: ' + e.message; }
 }
 function renderPerf(v) {
+  if (!v || typeof v !== 'object') {
+    $('perf-results').innerHTML = '<p class="warn-list">No results to show — run the analysis first. If the analysis keeps failing, check the status line above for the reason.</p>';
+    return;
+  }
   let html = '<table class="results"><tbody>';
   if (S.kind === 'multirotor') {
     html += `<tr><th>Thrust per rotor</th><td>${fmt(v.thrust_per_rotor_N, 2)} N</td></tr>`;
@@ -457,6 +468,7 @@ async function runRocket() {
   $('rocket-status').textContent = 'Running…';
   try {
     const values = await runAnalyze('rocket');
+    if (!values) return;  // runAnalyze already said why (e.g. no project picked)
     S.lastResults = values; S.lastKind = 'rocket';
     $('rocket-status').textContent = 'Done.';
     const dv = values.delta_v, st = values.stability;
@@ -476,6 +488,7 @@ async function runTrajectory() {
   $('traj-status').textContent = 'Running…';
   try {
     const values = await runAnalyze('trajectory');
+    if (!values) return;  // runAnalyze already said why (e.g. no project picked)
     S.lastResults = values; S.lastKind = 'trajectory';
     $('traj-status').textContent = 'Done.';
     $('traj-results').innerHTML = `<table class="results"><tbody>

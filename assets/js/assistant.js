@@ -9,7 +9,8 @@ async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const t = token();
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  const res = await fetch(API + path, { ...opts, headers });
+  const res = await (window.aielabFetchWithWake || fetch)(API + path, { ...opts, headers },
+    (attempt) => { const el = $('chat-status'); if (el) el.textContent = 'Waking the server… (retry ' + attempt + ')'; });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;

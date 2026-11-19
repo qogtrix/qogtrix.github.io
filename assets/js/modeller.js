@@ -532,11 +532,12 @@ async function updateStats() {
 }
 
 // -- persistence ------------------------------------------------------------------
-function apiBase() { return window.AIELAB_CONFIG ? window.AIELAB_CONFIG.apiBase() : 'http://127.0.0.1:8001'; }
+function apiBase() { return window.AIELAB_API_BASE || 'http://127.0.0.1:8001'; }
 async function api(method, path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;
-  const res = await fetch(apiBase() + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await (window.aielabFetchWithWake || fetch)(apiBase() + path, { method, headers, body: body ? JSON.stringify(body) : undefined },
+    (attempt) => status('Waking the server… (retry ' + attempt + ')', 'warn'));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(data.error || ('HTTP ' + res.status)); e.status = res.status; throw e; }
   return data;
@@ -602,6 +603,9 @@ async function loadProjectsIntoSelect() {
   try {
     const res = await api('GET', '/api/v1/projects', null, token);
     (res.projects || []).forEach((p) => sel.appendChild(new Option(p.name + (p.visibility === 'public' ? ' (public)' : ''), p.id)));
+    // Re-open the project this browser used last, when signed in.
+    const last = localStorage.getItem('aielab.last_project');
+    if (last && (res.projects || []).some((p) => p.id === last)) sel.value = last;
   } catch (e) { /* backend may not be running; guest mode still works */ }
 }
 async function loadMaterials() {
@@ -679,7 +683,12 @@ async function init() {
   }
   const params = new URLSearchParams(location.search);
   const pid = params.get('project');
-  if (pid) { projectName = params.get('name') || ''; await loadProject(pid); const sel = $('project-select'); if (sel) sel.value = pid; }
+  if (pid) { projectName = params.get('name') || ''; localStorage.setItem('aielab.last_project', pid); await loadProject(pid); const sel = $('project-select'); if (sel) sel.value = pid; }
+  else {
+    // No ?project= in the URL — re-open the last-used project.
+    const sel = $('project-select');
+    if (sel && sel.value) await loadProject(sel.value);
+  }
   const example = params.get('example');
   if (example && !pid) {
     try {
@@ -722,6 +731,8 @@ async function init() {
   });
   const projSel = $('project-select'); if (projSel) projSel.addEventListener('change', async () => {
     if (dirty && !confirm('Switch project? Unsaved changes to the current model will be lost.')) { projSel.value = projectId || ''; return; }
+    if (projSel.value) localStorage.setItem('aielab.last_project', projSel.value);
+    else localStorage.removeItem('aielab.last_project');
     projectName = projSel.selectedOptions[0] ? projSel.selectedOptions[0].textContent : '';
     if (projSel.value) await loadProject(projSel.value);
     else { projectId = null; model = { version: 0, units: 'mm', components: [] }; baseVersion = 0; rebuild(); status('Guest mode'); }

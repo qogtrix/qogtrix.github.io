@@ -37,7 +37,8 @@ async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const t = token();
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  const res = await fetch(API + path, { ...opts, headers });
+  const res = await (window.aielabFetchWithWake || fetch)(API + path, { ...opts, headers },
+    (attempt) => status('Waking the server… (retry ' + attempt + ')'));
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;
@@ -71,10 +72,15 @@ async function loadProjects() {
     const list = data.projects || [];
     sel.innerHTML = '<option value="">(guest — design saved locally only)</option>' +
       list.map((p) => `<option value="${esc(p.id)}">${esc(p.name || p.id)}</option>`).join('');
+    // Re-open the project this browser used last, when signed in.
+    const last = localStorage.getItem('aielab.last_project');
+    if (last && list.some((p) => p.id === last)) { sel.value = last; loadProjectDesign(); }
   } catch (e) { sel.innerHTML = '<option value="">(could not load projects)</option>'; }
 }
 async function loadProjectDesign() {
   S.projectId = $('project-select').value;
+  if (S.projectId) localStorage.setItem('aielab.last_project', S.projectId);
+  else localStorage.removeItem('aielab.last_project');
   S.lastResults = null;
   if (!S.projectId) { loadGuest(); renderDH(); renderSliders(); renderAll(); return; }
   try {

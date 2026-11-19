@@ -16,10 +16,10 @@ const $ = (id) => document.getElementById(id);
 const API = () => window.AIELAB_API_BASE || 'http://127.0.0.1:8001';
 const token = () => localStorage.getItem('aielab.token') || '';
 async function api(path, opts = {}) {
-  const res = await fetch(API() + path, {
+  const res = await (window.aielabFetchWithWake || fetch)(API() + path, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(token() ? { Authorization: 'Bearer ' + token() } : {}), ...(opts.headers || {}) },
-  });
+  }, (attempt) => setStatus('Waking the server… (retry ' + attempt + ')', true));
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;
@@ -74,7 +74,10 @@ $('project-select').addEventListener('change', (e) => { projectId = e.target.val
 let renderer, scene, camera, controls, clock;
 function initScene() {
   const viewer = $('viewer');
-  viewer.innerHTML = '';
+  // #viewer-stats lives inside #viewer — remove only the old canvas,
+  // or the stats element is destroyed and later writes crash on it
+  // ("Cannot set properties of null (setting 'textContent')").
+  viewer.querySelectorAll('canvas').forEach((c) => c.remove());
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(viewer.clientWidth, 520);
@@ -191,7 +194,8 @@ async function buildSceneAndWorld() {
     mesh.userData.bodyOffset = localCentre;
   }
   renderBodiesList();
-  $('viewer-stats').textContent = topLevel.length + ' bodies · gravity ' + $('gravity').value + ' m/s² · timestep 1/60 s';
+  const vs = $('viewer-stats');
+  if (vs) vs.textContent = topLevel.length + ' bodies · gravity ' + $('gravity').value + ' m/s² · timestep 1/60 s';
 }
 function renderBodiesList() {
   const list = $('bodies-list');

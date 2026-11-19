@@ -18,11 +18,11 @@ const fmtInt = (v) => (v == null ? '—' : Math.round(v).toLocaleString());
 
 function token() { return localStorage.getItem('aielab.token'); }
 async function api(method, path, body) {
-  const res = await fetch(API + path, {
+  const res = await (window.aielabFetchWithWake || fetch)(API + path, {
     method,
     headers: { 'Content-Type': 'application/json', ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }, (attempt) => setStatus('Waking the server… (retry ' + attempt + ')', 'warn'));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
   return data;
@@ -53,7 +53,10 @@ async function loadProjects() {
     (data.projects || []).forEach((p) => {
       const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o);
     });
-  } catch (e) { setStatus('Backend not running — sign in and start it (cd backend && python3 app.py) to load projects.', 'warn'); }
+    // Re-open the project this browser used last, when signed in.
+    const last = localStorage.getItem('aielab.last_project');
+    if (last && [...sel.options].some((o) => o.value === last)) { sel.value = last; projectId = last; }
+  } catch (e) { setStatus('Could not reach the backend to load projects — the hosted server sleeps when idle and can take a minute to wake. Sign in and try again.', 'warn'); }
 }
 async function loadMaterials() {
   try {
@@ -77,10 +80,14 @@ function materialDensity(mat) {
 // -- 3D assembly view -------------------------------------------------------------
 function initScene() {
   const el = $('viewer');
+  // The stats bar (#viewer-stats) lives inside #viewer — remove only
+  // the old canvas, never the whole container. innerHTML = '' destroyed
+  // the stats element, so the first buildViewer() crashed on
+  // "Cannot set properties of null (setting 'textContent')".
+  el.querySelectorAll('canvas').forEach((c) => c.remove());
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(el.clientWidth, 520);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  el.innerHTML = '';
   el.appendChild(renderer.domElement);
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0f14);
@@ -117,7 +124,8 @@ async function buildViewer() {
     const c = box.getCenter(new THREE.Vector3());
     orbit.target.copy(c);
     camera.position.set(c.x + 400, c.y + 300, c.z + 400);
-    $('viewer-stats').textContent = model.components.length + ' components · bounding box '
+    const vs = $('viewer-stats');
+    if (vs) vs.textContent = model.components.length + ' components · bounding box '
       + fmt(box.getSize(new THREE.Vector3()).x, 'mm') + ' × ' + fmt(box.getSize(new THREE.Vector3()).y, 'mm') + ' × ' + fmt(box.getSize(new THREE.Vector3()).z, 'mm');
   }
   renderTree(); renderSummary(); renderGearSelects(); renderAltSelect(); renderBOM();
@@ -152,7 +160,7 @@ async function loadModel() {
 let sceneReady = false;
 function initSceneIfNeeded() { if (!sceneReady) { initScene(); sceneReady = true; } }
 $('load-model').addEventListener('click', () => { projectId = $('project-select').value; projectName = $('project-select').selectedOptions[0]?.textContent || ''; loadModel(); });
-$('project-select').addEventListener('change', (e) => { projectId = e.target.value; });
+$('project-select').addEventListener('change', (e) => { projectId = e.target.value; if (e.target.value) localStorage.setItem('aielab.last_project', e.target.value); else localStorage.removeItem('aielab.last_project'); });
 
 // -- demo assemblies ---------------------------------------------------------------
 $('load-demo').addEventListener('click', async () => {
@@ -161,6 +169,7 @@ $('load-demo').addEventListener('click', async () => {
   setStatus('Loading demo ' + demo + '…');
   try {
     const res = await fetch('workspace/test-models/mechanical/' + demo + '.json');
+    if (!res.ok) throw new Error('Demo file not found (HTTP ' + res.status + ')');
     model = await res.json();
     projectId = null;
     setStatus('Demo loaded: ' + demo + ' (guest mode — sign in and save it to a project to keep it).');
