@@ -191,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 6,
+                return self._send(200, {"status": "ok", "stage": 7,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -752,7 +752,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(404, "Not found")
         raise ApiError(404, "Not found")
 
-    # -- simulation jobs (Stage 6) --------------------------------------
+    # -- simulation jobs (Stage 7) --------------------------------------
     def _material_props(self, material_id):
         props = {}
         try:
@@ -1146,7 +1146,7 @@ def main():
     dbmod.init_db(conn)
     conn.close()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AI Engineering Laboratory API — Stage 6")
+    print(f"AI Engineering Laboratory API — Stage 7")
     print(f"Listening on http://127.0.0.1:{port}  (health: /health)")
     print("Set AIELAB_SECRET in production; AIELAB_DB to change the database file.")
     try:

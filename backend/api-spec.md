@@ -166,6 +166,16 @@ booleans/imported meshes (measured from the mesh in the browser).
 All results are labelled with their method; analytical
 results are never FEA. See `docs/SOLVERS.md`.
 
+Stage 7 adds eleven mechanical solvers to the same registry
+and job API (no new endpoints): `gear_train`,
+`shaft_combined`, `bearing_load`, `belt_drive`,
+`spring_helical`, `flywheel`, `hydraulic_cylinder`,
+`crank_slider`, `fatigue_shaft`, `vibration_1dof`,
+`power_transmission`. Inputs are SI units; sections and
+materials work exactly as in Stage 6. See
+`docs/MECHANICAL.md` for the formulas and the assumptions of
+each solver.
+
 ## Public data (read-only)
 
 `GET /api/v1/materials`, `GET /api/v1/components` — served from

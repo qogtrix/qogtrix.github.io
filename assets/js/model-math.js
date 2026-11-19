@@ -14,7 +14,9 @@
   var PRIMITIVE_KINDS = ['box', 'cylinder', 'sphere', 'cone', 'torus',
     'rounded_box', 'chamfered_box', 'extrude', 'revolve'];
   var COMPONENT_KINDS = ['gear', 'shaft', 'bearing', 'bolt', 'nut',
-    'spring', 'piston', 'pipe', 'beam', 'motor', 'enclosure'];
+    'spring', 'piston', 'pipe', 'beam', 'motor', 'enclosure',
+    'crankshaft', 'connecting_rod', 'flywheel', 'clutch', 'brake_disc',
+    'coupling', 'pulley', 'sprocket', 'hydraulic_cylinder', 'valve', 'pump'];
   var BOOLEAN_OPS = ['union', 'subtract', 'intersect'];
 
   function toMM(value, unit) {
@@ -186,6 +188,84 @@
         if (bo == null || bi == null || wb2 == null) return { value: null, exact: false, note: 'missing dimension' };
         return { value: Math.PI / 4 * (bo * bo - bi * bi) * wb2, exact: false, note: 'estimate: balls and races ignored' };
       }
+      case 'crankshaft': {
+        var md = num(p.main_diameter), cd2 = num(p.crank_diameter), th = num(p.throw), Lj = num(p.length);
+        if (md == null || cd2 == null || th == null || Lj == null) return { value: null, exact: false, note: 'missing dimension' };
+        // Estimate: two main journals + one crank pin + two webs (boxes).
+        var vCrank = Math.PI * (md / 2) * (md / 2) * Lj * 0.7
+          + Math.PI * (cd2 / 2) * (cd2 / 2) * 24
+          + 2 * 8 * (th + md / 2 + cd2 / 2) * md;
+        return { value: vCrank, exact: false, note: 'estimate: webs approximated as boxes' };
+      }
+      case 'connecting_rod': {
+        var bd = num(p.big_diameter), sd = num(p.small_diameter), Lr = num(p.length), wr = num(p.width);
+        if (bd == null || sd == null || Lr == null || wr == null) return { value: null, exact: false, note: 'missing dimension' };
+        var bigRing = Math.PI / 4 * (bd * bd - Math.pow(bd * 0.6, 2)) * wr;
+        var smallRing = Math.PI / 4 * (sd * sd - Math.pow(sd * 0.5, 2)) * wr;
+        var shankLen = Math.max(0, Lr - (bd + sd) / 2);
+        return { value: bigRing + smallRing + shankLen * wr * wr * 0.6, exact: false, note: 'estimate: bore sizes assumed (big 60%, small 50% of outer)' };
+      }
+      case 'flywheel': {
+        var Df = num(p.diameter), tf = num(p.thickness), hub = num(p.hub_diameter), bore = num(p.bore_diameter);
+        if (Df == null || tf == null || hub == null) return { value: null, exact: false, note: 'missing dimension' };
+        var vFly = Math.PI / 4 * (Df * Df - (bore || 0) * (bore || 0)) * tf
+          + Math.PI / 4 * hub * hub * 16;
+        return { value: vFly, exact: true, note: 'disc with bore + hub ring' };
+      }
+      case 'clutch': {
+        var Dc = num(p.diameter), tc = num(p.thickness), boreC = num(p.bore_diameter);
+        if (Dc == null || tc == null) return { value: null, exact: false, note: 'missing dimension' };
+        return { value: Math.PI / 4 * (Dc * Dc - (boreC || 0) * (boreC || 0)) * tc, exact: true, note: 'plate pack as one annulus' };
+      }
+      case 'brake_disc': {
+        var Db = num(p.diameter), tb = num(p.thickness), boreB = num(p.bore_diameter), hubB = num(p.hub_diameter);
+        if (Db == null || tb == null) return { value: null, exact: false, note: 'missing dimension' };
+        var vBrake = Math.PI / 4 * (Db * Db - (boreB || 0) * (boreB || 0)) * tb;
+        if (hubB != null) vBrake += Math.PI / 4 * hubB * hubB * tb;
+        return { value: vBrake, exact: true, note: '' };
+      }
+      case 'coupling': {
+        var Dcp = num(p.diameter), Lcp = num(p.length), boreCp = num(p.bore_diameter);
+        if (Dcp == null || Lcp == null) return { value: null, exact: false, note: 'missing dimension' };
+        return { value: Math.PI / 4 * (Dcp * Dcp - (boreCp || 0) * (boreCp || 0)) * Lcp, exact: false, note: 'estimate: bolts ignored' };
+      }
+      case 'pulley': {
+        var Dp = num(p.diameter), wp = num(p.width), boreP = num(p.bore_diameter), gd = num(p.groove_depth);
+        if (Dp == null || wp == null) return { value: null, exact: false, note: 'missing dimension' };
+        var vPul = Math.PI / 4 * (Dp * Dp - (boreP || 0) * (boreP || 0)) * wp;
+        if (gd != null) vPul -= Math.PI * Dp * gd * gd; // V-groove material removed (approx.)
+        return { value: Math.max(0, vPul), exact: false, note: 'estimate: V-groove approximated' };
+      }
+      case 'sprocket': {
+        var teethS = num(p.teeth), pitch = num(p.pitch), ts = num(p.thickness), boreS = num(p.bore_diameter);
+        if (teethS == null || pitch == null || ts == null) return { value: null, exact: false, note: 'missing dimension' };
+        var pd = pitch / Math.sin(Math.PI / teethS);
+        var outer = pd + pitch * 0.6;
+        var vSpr = Math.PI / 4 * (outer * outer - (boreS || 0) * (boreS || 0)) * ts * 0.85;
+        return { value: vSpr, exact: false, note: 'estimate: teeth approximated as 85% of the outer cylinder' };
+      }
+      case 'hydraulic_cylinder': {
+        var boreH = num(p.bore_diameter), rod = num(p.rod_diameter), stroke = num(p.stroke), barrel = num(p.barrel_length);
+        if (boreH == null || rod == null || stroke == null || barrel == null) return { value: null, exact: false, note: 'missing dimension' };
+        var wall = 5; // assumed barrel wall thickness, mm (stated in docs)
+        var vHyd = Math.PI / 4 * (Math.pow(boreH + 2 * wall, 2) - boreH * boreH) * barrel
+          + Math.PI / 4 * rod * rod * (stroke + barrel / 2);
+        return { value: vHyd, exact: false, note: 'estimate: barrel wall assumed 5 mm' };
+      }
+      case 'valve': {
+        var bl = num(p.body_length), bw = num(p.body_width), bh = num(p.body_height),
+            bon = num(p.bonnet_diameter), hw = num(p.handwheel_diameter);
+        if (bl == null || bw == null || bh == null || bon == null || hw == null) return { value: null, exact: false, note: 'missing dimension' };
+        var vValve = bl * bw * bh + Math.PI / 4 * bon * bon * (bh / 2)
+          + 2 * Math.PI * Math.PI * (hw / 2) * 3 * 3;
+        return { value: vValve, exact: false, note: 'estimate: handwheel tube assumed 3 mm' };
+      }
+      case 'pump': {
+        var Dh = num(p.housing_diameter), Lh = num(p.housing_length), imp = num(p.impeller_diameter);
+        if (Dh == null || Lh == null || imp == null) return { value: null, exact: false, note: 'missing dimension' };
+        return { value: Math.PI / 4 * Dh * Dh * Lh + Math.PI / 4 * imp * imp * (Lh / 3) * 0.5,
+                 exact: false, note: 'estimate: impeller vanes approximated' };
+      }
       case 'boolean':
         return { value: null, exact: false, note: 'boolean volume needs the mesh — computed in the browser' };
       case 'mesh':
@@ -304,6 +384,32 @@
       case 'beam': pos('length'); pos('height'); pos('flange_width'); pos('flange_thickness'); pos('web_thickness'); break;
       case 'motor': pos('diameter'); pos('length'); pos('shaft_diameter'); pos('shaft_length'); break;
       case 'enclosure': pos('length'); pos('width'); pos('height'); pos('wall_thickness'); break;
+      case 'crankshaft':
+        pos('main_diameter'); pos('crank_diameter'); pos('throw'); pos('length');
+        if (typeof p.journals !== 'number' || p.journals < 2 || Math.floor(p.journals) !== p.journals) errors.push(where + '.params.journals must be an integer >= 2');
+        break;
+      case 'connecting_rod': pos('big_diameter'); pos('small_diameter'); pos('length'); pos('width'); break;
+      case 'flywheel': pos('diameter'); pos('thickness'); pos('hub_diameter'); if (p.bore_diameter !== undefined) pos('bore_diameter'); break;
+      case 'clutch':
+        pos('diameter'); pos('thickness'); if (p.bore_diameter !== undefined) pos('bore_diameter');
+        if (typeof p.plates !== 'number' || p.plates < 1 || Math.floor(p.plates) !== p.plates) errors.push(where + '.params.plates must be an integer >= 1');
+        break;
+      case 'brake_disc': pos('diameter'); pos('thickness'); if (p.bore_diameter !== undefined) pos('bore_diameter'); if (p.hub_diameter !== undefined) pos('hub_diameter'); break;
+      case 'coupling':
+        pos('diameter'); pos('length'); if (p.bore_diameter !== undefined) pos('bore_diameter');
+        if (typeof p.bolts !== 'number' || p.bolts < 2 || Math.floor(p.bolts) !== p.bolts) errors.push(where + '.params.bolts must be an integer >= 2');
+        break;
+      case 'pulley': pos('diameter'); pos('width'); if (p.bore_diameter !== undefined) pos('bore_diameter'); if (p.groove_depth !== undefined) pos('groove_depth'); break;
+      case 'sprocket':
+        pos('pitch'); pos('thickness'); if (p.bore_diameter !== undefined) pos('bore_diameter');
+        if (typeof p.teeth !== 'number' || p.teeth < 6 || Math.floor(p.teeth) !== p.teeth) errors.push(where + '.params.teeth must be an integer >= 6');
+        break;
+      case 'hydraulic_cylinder': pos('bore_diameter'); pos('rod_diameter'); pos('stroke'); pos('barrel_length'); if (p.rod_diameter >= p.bore_diameter) errors.push(where + '.params.rod_diameter must be smaller than bore_diameter'); break;
+      case 'valve': pos('body_length'); pos('body_width'); pos('body_height'); pos('bonnet_diameter'); pos('handwheel_diameter'); break;
+      case 'pump':
+        pos('housing_diameter'); pos('housing_length'); pos('impeller_diameter');
+        if (typeof p.vanes !== 'number' || p.vanes < 3 || Math.floor(p.vanes) !== p.vanes) errors.push(where + '.params.vanes must be an integer >= 3');
+        break;
       case 'boolean': break; // checked in validateModel
       case 'mesh': break; // imported geometry: validated by the importer
       default: break;

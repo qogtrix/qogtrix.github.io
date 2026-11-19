@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mechanical Engineering Laboratory — AI Engineering Laboratory</title>
+<meta name="description" content="Mechanical engineering workspace: component library, gear trains, crank-slider kinematics, engineering calculations, bill of materials.">
+<link rel="stylesheet" href="assets/css/style.css">
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.0/build/index.module.js",
+  "three-bvh-csg":"https://cdn.jsdelivr.net/npm/three-bvh-csg@0.0.16/build/index.module.js"
+}}
+</script>
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 7 · Mechanical</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+  <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical Lab</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Library</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Conceptual designs only — not validated for manufacturing or real-world operation.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">Mechanical Engineering Laboratory</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 7</span>
+  </header>
+  <main class="content">
+    <h1>Mechanical Engineering Laboratory</h1>
+    <div class="notice warn"><b>Safety note:</b> everything here is a <b>conceptual design</b>. Calculations are analytical formulas and the geometry is simplified (for example, gear teeth are a trapezoidal approximation, not a true involute). Nothing on this page is validated for manufacturing or real-world operation. Do not build a machine from it without a qualified engineer's review.</div>
+    <p>Design mechanical assemblies from the component library, run gear-train and shaft calculations, animate a crank-slider, and generate a bill of materials — all on real model data and the Stage 4 material database.</p>
+
+    <div class="model-toolbar">
+      <label class="small muted" for="project-select">Project</label>
+      <select id="project-select"><option value="">— choose a project —</option></select>
+      <button class="secondary" id="load-model">Load model</button>
+      <label class="small muted" for="demo-select">Demo</label>
+      <select id="demo-select">
+        <option value="">— load a demo assembly —</option>
+        <option value="gear_transmission">Gear transmission (ratio 2:1)</option>
+        <option value="crank_slider">Crank-slider mechanism</option>
+        <option value="rotating_shaft">Rotating shaft assembly</option>
+        <option value="hydraulic_lift">Hydraulic lifting mechanism</option>
+      </select>
+      <button class="secondary" id="load-demo">Load demo</button>
+      <span class="model-status" id="mech-status">Choose a project and load its model.</span>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="assembly" role="tab">Assembly</button>
+      <button class="tab" data-tab="gears" role="tab">Gear train</button>
+      <button class="tab" data-tab="crank" role="tab">Crank-slider</button>
+      <button class="tab" data-tab="calc" role="tab">Calculations</button>
+      <button class="tab" data-tab="bom" role="tab">Bill of materials</button>
+    </div>
+
+    <section id="tab-assembly">
+      <div class="model-layout">
+        <aside class="model-panel" aria-label="Component library">
+          <h3>Mechanical components</h3>
+          <p class="small muted">Adds the component to the loaded project (sign in first). Dimensions are editable in the 3D Workspace.</p>
+          <div class="btn-grid" id="mech-library"></div>
+          <h3>Assembly tree</h3>
+          <div id="assembly-tree"><p class="muted">Load a model to see its assembly.</p></div>
+          <h3>Exploded view</h3>
+          <div class="field-row"><label>Explode</label><input type="range" id="explode" min="0" max="100" value="0"></div>
+        </aside>
+        <div>
+          <div class="viewer model-viewer" id="viewer"><div class="viewer-stats" id="viewer-stats">Load a model to inspect the assembly.</div></div>
+        </div>
+        <aside class="model-panel" aria-label="Assembly details">
+          <h3>Assembly summary</h3>
+          <div id="assembly-summary"><p class="muted">Nothing loaded yet.</p></div>
+          <h3>Material alternatives</h3>
+          <p class="small muted">Pick a component to see lighter or stronger material options from the Stage 4 database (same transparent scoring as the Materials Library).</p>
+          <div class="field-row"><label>Component</label><select id="alt-component"></select></div>
+          <button class="secondary" id="find-alternatives">Find alternatives</button>
+          <div id="alternatives"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="tab-gears" hidden>
+      <div class="model-layout" style="grid-template-columns:300px 1fr">
+        <aside class="model-panel">
+          <h3>Gear train</h3>
+          <div class="field-row"><label>Driving gear</label><select id="gear-a"></select></div>
+          <div class="field-row"><label>Driven gear</label><select id="gear-b"></select></div>
+          <div class="field-row"><label>Input speed (rpm)</label><input type="number" id="gear-speed" value="1500"></div>
+          <div class="field-row"><label>Input torque (N·m)</label><input type="number" id="gear-torque" value="10"></div>
+          <div class="field-row"><label>Mesh efficiency (0–1)</label><input type="number" id="gear-eff" value="0.95" step="0.01"></div>
+          <button class="primary" id="run-gear">Calculate gear train</button>
+          <p class="small muted">Gears are read from the loaded model (module and teeth). If the model has no gears, enter them manually in Calculations.</p>
+        </aside>
+        <div class="model-panel"><h3>Results</h3><div id="gear-results"><p class="muted">Run the calculation to see ratio, speeds, torques, power and tooth forces — with the formulas used.</p></div></div>
+      </div>
+    </section>
+
+    <section id="tab-crank" hidden>
+      <div class="model-layout" style="grid-template-columns:300px 1fr">
+        <aside class="model-panel">
+          <h3>Crank-slider kinematics</h3>
+          <div class="field-row"><label>Crank radius r (mm)</label><input type="number" id="crank-r" value="25"></div>
+          <div class="field-row"><label>Rod length l (mm)</label><input type="number" id="crank-l" value="120"></div>
+          <div class="field-row"><label>Speed (rpm)</label><input type="number" id="crank-rpm" value="1500"></div>
+          <div class="btn-row"><button class="primary" id="crank-play">Play</button><button class="secondary" id="crank-pause">Pause</button></div>
+          <button class="secondary" id="crank-run-solver">Run full 720° analysis (backend)</button>
+          <div id="crank-live"><p class="muted">Press Play to animate the mechanism.</p></div>
+          <div id="crank-solver-results"></div>
+        </aside>
+        <div class="model-panel"><h3>Mechanism</h3><canvas id="crank-canvas" width="640" height="360"></canvas>
+        <p class="small muted">Exact slider-crank kinematics: x(θ) = r·cosθ + √(l² − r²sin²θ). The animation is the formula, not a physics guess.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-calc" hidden>
+      <div class="notice info">Mechanical calculations are analytical formulas (see each solver's assumptions). They are labelled <strong>analytical</strong> — not FEA. A missing material property stops the run with a named error; nothing is guessed.</div>
+      <div class="model-toolbar">
+        <label class="small muted" for="solver-select">Solver</label>
+        <select id="solver-select"></select>
+        <button class="primary" id="run-calc">Run solver</button>
+      </div>
+      <div class="model-layout" style="grid-template-columns:300px 1fr">
+        <aside class="model-panel"><h3>Inputs</h3><div id="solver-inputs"></div><div id="solver-meta" class="small muted"></div></aside>
+        <div class="model-panel"><h3>Results</h3><div id="calc-results"><p class="muted">Choose a solver, fill the inputs, and run it.</p></div></div>
+      </div>
+    </section>
+
+    <section id="tab-bom" hidden>
+      <div class="model-panel">
+        <h3>Bill of materials</h3>
+        <div id="bom-table"><p class="muted">Load a model to generate its bill of materials.</p></div>
+        <div class="btn-row"><button class="secondary" id="bom-csv">Download CSV</button><button class="secondary" id="bom-print">Print / save PDF</button></div>
+        <p class="small muted">Volumes are analytic (estimates flagged) or mesh volumes from the 3D workspace; mass = volume × the material's recorded density. Components without a material show mass as "—".</p>
+      </div>
+    </section>
+    <p class="small muted">Mechanical components are simplified parametric representations — see <a href="docs/MECHANICAL.md">docs/MECHANICAL.md</a> for exactly what each one models and what it leaves out.</p>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 7 Mechanical · Analytical calculations · Conceptual designs only</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/model-math.js"></script>
+<script>
+  setTimeout(function () {
+    var v = document.getElementById('viewer');
+    if (v && !v.querySelector('canvas')) {
+      v.innerHTML = '<div class="viewer-fallback"><b>The mechanical workspace could not be loaded.</b><br>Three.js did not load from the CDN. Check your internet connection and reload.</div>';
+    }
+  }, 10000);
+</script>
+<script type="module" src="assets/js/mechanical.js"></script>
+</body>
+</html>

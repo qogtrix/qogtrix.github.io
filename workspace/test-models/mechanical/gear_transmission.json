@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "base",
+      "name": "Base plate",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 200,
+        "width": 12,
+        "height": 120
+      },
+      "position": [
+        0,
+        -50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "shaft-in",
+      "name": "Input shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          10,
+          14
+        ],
+        "lengths": [
+          50,
+          30
+        ]
+      },
+      "position": [
+        -30,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "gear-in",
+      "name": "Pinion 20T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 20,
+        "thickness": 12,
+        "bore_diameter": 10
+      },
+      "position": [
+        -30,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": "shaft-in",
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-in-1",
+      "name": "Input bearing A",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 10,
+        "outer_diameter": 30,
+        "width": 9
+      },
+      "position": [
+        -30,
+        0,
+        -30
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-in-2",
+      "name": "Input bearing B",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 10,
+        "outer_diameter": 30,
+        "width": 9
+      },
+      "position": [
+        -30,
+        0,
+        30
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "shaft-out",
+      "name": "Output shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          12,
+          16
+        ],
+        "lengths": [
+          50,
+          30
+        ]
+      },
+      "position": [
+        30,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "gear-out",
+      "name": "Gear 40T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 40,
+        "thickness": 12,
+        "bore_diameter": 12
+      },
+      "position": [
+        30,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": "shaft-out",
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-out-1",
+      "name": "Output bearing A",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 12,
+        "outer_diameter": 32,
+        "width": 10
+      },
+      "position": [
+        30,
+        0,
+        -30
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-out-2",
+      "name": "Output bearing B",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 12,
+        "outer_diameter": 32,
+        "width": 10
+      },
+      "position": [
+        30,
+        0,
+        30
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

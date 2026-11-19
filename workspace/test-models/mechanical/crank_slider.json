@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "crankshaft",
+      "name": "Crankshaft",
+      "type": "component",
+      "kind": "crankshaft",
+      "params": {
+        "main_diameter": 30,
+        "crank_diameter": 24,
+        "throw": 25,
+        "length": 160,
+        "journals": 3
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "rod",
+      "name": "Connecting rod",
+      "type": "component",
+      "kind": "connecting_rod",
+      "params": {
+        "big_diameter": 40,
+        "small_diameter": 24,
+        "length": 120,
+        "width": 16
+      },
+      "position": [
+        0,
+        25,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "piston",
+      "name": "Piston",
+      "type": "component",
+      "kind": "piston",
+      "params": {
+        "diameter": 50,
+        "height": 40,
+        "ring_grooves": 2
+      },
+      "position": [
+        0,
+        145,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "alu-6061-t6",
+      "visible": true,
+      "parent_id": "rod",
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "block",
+      "name": "Cylinder block",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 120,
+        "width": 180,
+        "height": 120
+      },
+      "position": [
+        0,
+        110,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "alu-6061-t6",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "flywheel",
+      "name": "Flywheel",
+      "type": "component",
+      "kind": "flywheel",
+      "params": {
+        "diameter": 200,
+        "thickness": 24,
+        "hub_diameter": 60,
+        "bore_diameter": 30
+      },
+      "position": [
+        -110,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

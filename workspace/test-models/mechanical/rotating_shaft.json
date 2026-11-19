@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "shaft",
+      "name": "Stepped shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          20,
+          30,
+          20
+        ],
+        "lengths": [
+          40,
+          60,
+          40
+        ]
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-1",
+      "name": "Bearing A",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 20,
+        "outer_diameter": 47,
+        "width": 14
+      },
+      "position": [
+        -50,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-2",
+      "name": "Bearing B",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 20,
+        "outer_diameter": 47,
+        "width": 14
+      },
+      "position": [
+        50,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "flywheel",
+      "name": "Flywheel",
+      "type": "component",
+      "kind": "flywheel",
+      "params": {
+        "diameter": 160,
+        "thickness": 20,
+        "hub_diameter": 50,
+        "bore_diameter": 20
+      },
+      "position": [
+        85,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "coupling",
+      "name": "Flange coupling",
+      "type": "component",
+      "kind": "coupling",
+      "params": {
+        "diameter": 70,
+        "length": 50,
+        "bore_diameter": 20,
+        "bolts": 4
+      },
+      "position": [
+        -85,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "motor",
+      "name": "Drive motor",
+      "type": "component",
+      "kind": "motor",
+      "params": {
+        "diameter": 60,
+        "length": 90,
+        "shaft_diameter": 12,
+        "shaft_length": 30
+      },
+      "position": [
+        -160,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "alu-6061-t6",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

@@ -35,13 +35,27 @@ const PARAM_SPECS = {
   beam: [['length', 'Length'], ['height', 'Height'], ['flange_width', 'Flange width'], ['flange_thickness', 'Flange thickness'], ['web_thickness', 'Web thickness']],
   motor: [['diameter', 'Diameter'], ['length', 'Length'], ['shaft_diameter', 'Shaft diameter'], ['shaft_length', 'Shaft length']],
   enclosure: [['length', 'Length'], ['width', 'Width'], ['height', 'Height'], ['wall_thickness', 'Wall thickness']],
+  crankshaft: [['main_diameter', 'Main journal diameter'], ['crank_diameter', 'Crank pin diameter'], ['throw', 'Crank throw'], ['length', 'Length'], ['journals', 'Main journals']],
+  connecting_rod: [['big_diameter', 'Big-end diameter'], ['small_diameter', 'Small-end diameter'], ['length', 'Centre distance'], ['width', 'Width']],
+  flywheel: [['diameter', 'Diameter'], ['thickness', 'Thickness'], ['hub_diameter', 'Hub diameter'], ['bore_diameter', 'Bore diameter']],
+  clutch: [['diameter', 'Diameter'], ['thickness', 'Thickness'], ['bore_diameter', 'Bore diameter'], ['plates', 'Plates']],
+  brake_disc: [['diameter', 'Diameter'], ['thickness', 'Thickness'], ['bore_diameter', 'Bore diameter'], ['hub_diameter', 'Hub diameter']],
+  coupling: [['diameter', 'Diameter'], ['length', 'Length'], ['bore_diameter', 'Bore diameter'], ['bolts', 'Bolts']],
+  pulley: [['diameter', 'Diameter'], ['width', 'Width'], ['bore_diameter', 'Bore diameter'], ['groove_depth', 'Groove depth']],
+  sprocket: [['teeth', 'Teeth'], ['pitch', 'Chain pitch'], ['thickness', 'Thickness'], ['bore_diameter', 'Bore diameter']],
+  hydraulic_cylinder: [['bore_diameter', 'Bore diameter'], ['rod_diameter', 'Rod diameter'], ['stroke', 'Stroke'], ['barrel_length', 'Barrel length']],
+  valve: [['body_length', 'Body length'], ['body_width', 'Body width'], ['body_height', 'Body height'], ['bonnet_diameter', 'Bonnet diameter'], ['handwheel_diameter', 'Handwheel diameter']],
+  pump: [['housing_diameter', 'Housing diameter'], ['housing_length', 'Housing length'], ['impeller_diameter', 'Impeller diameter'], ['vanes', 'Vanes']],
 };
 const KIND_LABELS = {
   box: 'Box', cylinder: 'Cylinder', sphere: 'Sphere', cone: 'Cone', torus: 'Torus',
   rounded_box: 'Rounded box (fillet)', chamfered_box: 'Chamfered box', extrude: 'Extrusion',
   revolve: 'Revolve', gear: 'Gear', shaft: 'Shaft', bearing: 'Bearing', bolt: 'Bolt',
   nut: 'Nut', spring: 'Spring', piston: 'Piston', pipe: 'Pipe', beam: 'I-beam',
-  motor: 'Motor', enclosure: 'Enclosure', boolean: 'Boolean', mesh: 'Imported mesh',
+  motor: 'Motor', enclosure: 'Enclosure', crankshaft: 'Crankshaft', connecting_rod: 'Connecting rod',
+  flywheel: 'Flywheel', clutch: 'Clutch', brake_disc: 'Brake disc', coupling: 'Coupling',
+  pulley: 'Pulley', sprocket: 'Sprocket', hydraulic_cylinder: 'Hydraulic cylinder',
+  valve: 'Valve', pump: 'Pump', boolean: 'Boolean', mesh: 'Imported mesh',
 };
 
 let scene, perspCam, orthoCam, camera, renderer, orbit, gizmo, grid, axes;
@@ -261,6 +275,17 @@ function defaultParams(kind) {
     beam: { length: 500, height: 100, flange_width: 60, flange_thickness: 8, web_thickness: 5 },
     motor: { diameter: 60, length: 90, shaft_diameter: 12, shaft_length: 30 },
     enclosure: { length: 120, width: 80, height: 60, wall_thickness: 4 },
+    crankshaft: { main_diameter: 30, crank_diameter: 24, throw: 25, length: 160, journals: 3 },
+    connecting_rod: { big_diameter: 40, small_diameter: 24, length: 120, width: 16 },
+    flywheel: { diameter: 200, thickness: 24, hub_diameter: 60, bore_diameter: 30 },
+    clutch: { diameter: 180, thickness: 12, bore_diameter: 30, plates: 2 },
+    brake_disc: { diameter: 220, thickness: 20, bore_diameter: 60, hub_diameter: 100 },
+    coupling: { diameter: 90, length: 60, bore_diameter: 25, bolts: 4 },
+    pulley: { diameter: 120, width: 24, bore_diameter: 25, groove_depth: 4 },
+    sprocket: { teeth: 18, pitch: 12.7, thickness: 8, bore_diameter: 25 },
+    hydraulic_cylinder: { bore_diameter: 50, rod_diameter: 25, stroke: 100, barrel_length: 160 },
+    valve: { body_length: 90, body_width: 60, body_height: 50, bonnet_diameter: 30, handwheel_diameter: 80 },
+    pump: { housing_diameter: 120, housing_length: 90, impeller_diameter: 90, vanes: 6 },
   };
   return JSON.parse(JSON.stringify(d[kind] || {}));
 }

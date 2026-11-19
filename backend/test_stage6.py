@@ -72,7 +72,7 @@ def main():
 
     try:
         s, h = req(base, "GET", "/health")
-        check("health endpoint (stage 6)", s == 200 and h.get("stage") == 6, f"HTTP {s}")
+        check("health endpoint (stage 6)", s == 200 and h.get("stage") in (6, 7), f"HTTP {s}")
         s, reg = req(base, "GET", "/api/v1/solvers")
         check("solver registry lists analytical + fea/cfd as not_implemented",
               s == 200 and reg["solvers"]["cantilever_beam"]["status"] == "available"

@@ -172,3 +172,26 @@ docs/*.md
 - Tests: `backend/test_stage6.py` **29/29**,
   `backend/test_stage6_rapier.mjs` **9/9**.
   See `docs/TEST_RESULTS_STAGE6.md`.
+
+## Stage 7 — Mechanical Engineering Laboratory (19 Nov 2026)
+
+- **Mechanical workspace** (`mechanical.html`): assembly
+  preview with exploded view, 16-component mechanical library,
+  gear-train calculator, crank-slider animator with exact
+  kinematics, calculation panel, bill of materials (CSV +
+  print), material alternatives.
+- **11 analytical mechanical solvers** (backend, SI units):
+  gear train, combined shaft stress, bearing loads, belt drive,
+  helical spring, flywheel, hydraulic cylinder, crank-slider
+  (720° series), shaft fatigue (Goodman), 1-DOF vibration,
+  power transmission — all labelled ANALYTICAL with their
+  assumptions; missing material properties are named errors.
+- **4 demo assemblies**: gear transmission (2:1), crank-slider,
+  rotating shaft, hydraulic lift — in
+  `workspace/test-models/mechanical/`.
+- **Honest limits:** conceptual designs only — no FEA/CFD, no
+  constraint solver, components are simplified representations.
+  See `docs/MECHANICAL.md` and `docs/TEST_RESULTS_STAGE7.md`.
+- Tests: `backend/test_stage7.py` **99/99**,
+  `backend/test_stage7_math.js` **36/36**,
+  `backend/test_stage7_kernel.mjs` **22/22**.

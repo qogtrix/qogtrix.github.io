@@ -138,3 +138,43 @@ volume the API returns as null (booleans, imported meshes).
   and suggest the concrete change (bigger section, stronger
   material, shorter span, add a support). Never invent a
   solver result the API did not return.
+
+
+---
+
+## Mechanical engineering (Stage 7) — structured tools for Muse
+
+- **Build a machine from a request:** break the machine into
+  components from the Stage 5 + Stage 7 library (gear, shaft,
+  bearing, crankshaft, connecting_rod, flywheel, clutch,
+  brake_disc, coupling, pulley, sprocket, hydraulic_cylinder,
+  valve, pump, spring, piston, motor, enclosure). Create the
+  model with `POST /api/v1/projects/{id}/model/components`
+  (one call per component) or `PUT /api/v1/projects/{id}/model`
+  with a whole model; every component needs valid params
+  (see `backend/model.py` — the validator is the contract).
+  Parent gears to their shafts; keep positions in mm.
+- **Run the calculations:** `POST /api/v1/simulations` with
+  the mechanical solver and SI inputs. Read the job's results
+  and assumptions. Check the safety factor (and the Goodman
+  factor for fatigue) and report the verdict with the numbers.
+  If a job comes back `failed`, the missing property is named
+  in the error — tell the user which property is missing for
+  that material instead of substituting one.
+- **Crank-slider:** use the `crank_slider` solver for the
+  full 720° series (position/velocity/acceleration every 10°)
+  and the exact formulas; do not simulate the mechanism with
+  Rapier and call it kinematics.
+- **Material alternatives:** for a component, read its current
+  material, then `POST /api/v1/materials/recommend` with
+  `min_yield_mpa` = current yield and `max_density_kg_m3` =
+  current density to find lighter options; report the mass
+  each would give the component (volume x density) and check
+  the alternative against fatigue, temperature and corrosion
+  before recommending it.
+- **Improvements:** propose a concrete change (bigger section,
+  stronger material, different ratio, larger bearing), apply
+  it to the model, and re-run the same solvers to show the
+  before/after numbers. Never claim a design is safe to build:
+  everything here is conceptual until a qualified engineer
+  reviews it and a real FEA/CFD validation exists.

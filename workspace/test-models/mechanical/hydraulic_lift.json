@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "base",
+      "name": "Base plate",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 200,
+        "width": 10,
+        "height": 200
+      },
+      "position": [
+        0,
+        -95,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "cylinder",
+      "name": "Hydraulic cylinder",
+      "type": "component",
+      "kind": "hydraulic_cylinder",
+      "params": {
+        "bore_diameter": 50,
+        "rod_diameter": 25,
+        "stroke": 100,
+        "barrel_length": 160
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "load",
+      "name": "Load block",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 120,
+        "width": 40,
+        "height": 120
+      },
+      "position": [
+        0,
+        215,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-1",
+      "name": "Base bolt 1",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 10,
+        "length": 20,
+        "head_height": 6
+      },
+      "position": [
+        -80,
+        -85,
+        -80
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-2",
+      "name": "Base bolt 2",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 10,
+        "length": 20,
+        "head_height": 6
+      },
+      "position": [
+        80,
+        -85,
+        -80
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-3",
+      "name": "Base bolt 3",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 10,
+        "length": 20,
+        "head_height": 6
+      },
+      "position": [
+        -80,
+        -85,
+        80
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-4",
+      "name": "Base bolt 4",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 10,
+        "length": 20,
+        "head_height": 6
+      },
+      "position": [
+        80,
+        -85,
+        80
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

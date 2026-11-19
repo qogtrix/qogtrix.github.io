@@ -1,4 +1,4 @@
-/* AI Engineering Laboratory — 3D modelling kernel (Stage 5).
+/* AI Engineering Laboratory — 3D modelling kernel (Stage 5, extended in Stage 7 with mechanical components).
    ES module. Builds real, editable Three.js geometry from the model
    JSON (see assets/js/model-math.js for the schema).
 
@@ -317,6 +317,159 @@ function buildComponent(comp, color) {
       const wallZ = mesh(new THREE.BoxGeometry(l - 2 * t, h - t, t), color);
       wallZ.position.set(0, t / 2, -w / 2 + t / 2); add(wallZ);
       const wallZ2 = wallZ.clone(); wallZ2.position.z = w / 2 - t / 2; add(wallZ2);
+      break;
+    }
+    case 'crankshaft': {
+      // Single-throw crankshaft along X: two main journals, two webs, one pin.
+      const L = p.length, md = p.main_diameter, cd2 = p.crank_diameter, th = p.throw;
+      const j1 = mesh(new THREE.CylinderGeometry(md / 2, md / 2, L / 2 - 8, 48), color);
+      j1.rotation.z = Math.PI / 2; j1.position.x = -L / 4; add(j1);
+      const j2 = j1.clone(); j2.position.x = L / 4; add(j2);
+      const webH = th + md / 2 + cd2 / 2;
+      for (const wx of [-10, 10]) {
+        const web = mesh(new THREE.BoxGeometry(8, webH, md), color);
+        web.position.set(wx, th / 2, 0); add(web);
+      }
+      const pin = mesh(new THREE.CylinderGeometry(cd2 / 2, cd2 / 2, 28, 32), color);
+      pin.rotation.z = Math.PI / 2; pin.position.set(0, th, 0); add(pin);
+      break;
+    }
+    case 'connecting_rod': {
+      // Big end at y = 0, small end at y = length; shank between them.
+      const bd = p.big_diameter, sd = p.small_diameter, Lr = p.length, wr = p.width;
+      const ring = (rOut, rIn, y) => {
+        const pts = [new THREE.Vector2(rIn, -wr / 2), new THREE.Vector2(rOut, -wr / 2),
+          new THREE.Vector2(rOut, wr / 2), new THREE.Vector2(rIn, wr / 2), new THREE.Vector2(rIn, -wr / 2)];
+        const m = mesh(new THREE.LatheGeometry(pts, 48), color);
+        m.rotation.x = Math.PI / 2; m.position.y = y; return m;
+      };
+      add(ring(bd / 2, bd * 0.3, 0));
+      add(ring(sd / 2, sd * 0.25, Lr));
+      const shankLen = Math.max(1, Lr - (bd + sd) / 2);
+      const shank = mesh(new THREE.BoxGeometry(wr, shankLen, wr * 0.6), color);
+      shank.position.y = bd / 2 + shankLen / 2; add(shank);
+      break;
+    }
+    case 'flywheel': {
+      const s = new THREE.Shape();
+      s.absarc(0, 0, p.diameter / 2, 0, Math.PI * 2, false);
+      if (p.bore_diameter) s.holes.push(circlePath(0, 0, p.bore_diameter / 2));
+      const g = new THREE.ExtrudeGeometry(s, { depth: p.thickness, bevelEnabled: false, curveSegments: 48 });
+      g.translate(0, 0, -p.thickness / 2);
+      add(mesh(g, color));
+      const hubPts = [new THREE.Vector2((p.bore_diameter || 0) / 2, -8), new THREE.Vector2(p.hub_diameter / 2, -8),
+        new THREE.Vector2(p.hub_diameter / 2, 8), new THREE.Vector2((p.bore_diameter || 0) / 2, 8),
+        new THREE.Vector2((p.bore_diameter || 0) / 2, -8)];
+      const hub = mesh(new THREE.LatheGeometry(hubPts, 48), 0x9ca3af);
+      hub.rotation.x = Math.PI / 2; add(hub);
+      break;
+    }
+    case 'clutch': {
+      const plates = p.plates || 1, th = p.thickness / plates;
+      for (let i = 0; i < plates; i++) {
+        const s = new THREE.Shape();
+        s.absarc(0, 0, p.diameter / 2, 0, Math.PI * 2, false);
+        if (p.bore_diameter) s.holes.push(circlePath(0, 0, p.bore_diameter / 2));
+        const g = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: false, curveSegments: 48 });
+        g.translate(0, 0, -p.thickness / 2 + i * th);
+        add(mesh(g, i % 2 ? 0x6b7280 : color));
+      }
+      break;
+    }
+    case 'brake_disc': {
+      const s = new THREE.Shape();
+      s.absarc(0, 0, p.diameter / 2, 0, Math.PI * 2, false);
+      if (p.bore_diameter) s.holes.push(circlePath(0, 0, p.bore_diameter / 2));
+      const g = new THREE.ExtrudeGeometry(s, { depth: p.thickness, bevelEnabled: false, curveSegments: 48 });
+      g.translate(0, 0, -p.thickness / 2);
+      add(mesh(g, color));
+      if (p.hub_diameter) {
+        const hub = mesh(new THREE.CylinderGeometry(p.hub_diameter / 2, p.hub_diameter / 2, p.thickness, 32), 0x6b7280);
+        hub.rotation.x = Math.PI / 2; add(hub);
+      }
+      const caliper = mesh(new THREE.BoxGeometry(p.diameter * 0.22, p.diameter * 0.18, p.thickness * 2.2), 0x374151);
+      caliper.position.set(p.diameter * 0.42, 0, 0); add(caliper);
+      break;
+    }
+    case 'coupling': {
+      const L = p.length;
+      for (const fx of [-L / 4, L / 4]) {
+        const s = new THREE.Shape();
+        s.absarc(0, 0, p.diameter / 2, 0, Math.PI * 2, false);
+        if (p.bore_diameter) s.holes.push(circlePath(0, 0, p.bore_diameter / 2));
+        const g = new THREE.ExtrudeGeometry(s, { depth: L / 2 - 2, bevelEnabled: false, curveSegments: 48 });
+        g.translate(0, 0, fx - (L / 2 - 2) / 2);
+        const flange = mesh(g, color);
+        flange.rotation.y = Math.PI / 2; add(flange);
+      }
+      const bolts = p.bolts || 4;
+      for (let i = 0; i < bolts; i++) {
+        const a = (i / bolts) * Math.PI * 2;
+        const b = mesh(new THREE.CylinderGeometry(p.diameter * 0.05, p.diameter * 0.05, L, 12), 0x9ca3af);
+        b.rotation.z = Math.PI / 2;
+        b.position.set(0, Math.cos(a) * p.diameter * 0.35, Math.sin(a) * p.diameter * 0.35);
+        add(b);
+      }
+      break;
+    }
+    case 'pulley': {
+      // Lathe profile with a V-groove on the rim, axis Z.
+      const R = p.diameter / 2, w = p.width, gd = p.groove_depth || 0, bore = (p.bore_diameter || 0) / 2;
+      const pts = [new THREE.Vector2(bore, -w / 2), new THREE.Vector2(R, -w / 2),
+        new THREE.Vector2(R - gd, 0), new THREE.Vector2(R, w / 2),
+        new THREE.Vector2(bore, w / 2), new THREE.Vector2(bore, -w / 2)];
+      const m = mesh(new THREE.LatheGeometry(pts, 64), color);
+      m.rotation.x = Math.PI / 2; add(m);
+      break;
+    }
+    case 'sprocket': {
+      // Reuses the gear tooth shape with module = pitch / pi.
+      const g = new THREE.ExtrudeGeometry(gearShape(p.pitch / Math.PI, p.teeth, p.bore_diameter),
+        { depth: p.thickness, bevelEnabled: false });
+      g.translate(0, 0, -p.thickness / 2);
+      add(mesh(g, color));
+      break;
+    }
+    case 'hydraulic_cylinder': {
+      // Barrel along Y, rod extended upward.
+      const bore = p.bore_diameter, wall = 5, outer = bore + 2 * wall, bl = p.barrel_length;
+      const barrelPts = [new THREE.Vector2(bore / 2, -bl / 2), new THREE.Vector2(outer / 2, -bl / 2),
+        new THREE.Vector2(outer / 2, bl / 2), new THREE.Vector2(bore / 2, bl / 2), new THREE.Vector2(bore / 2, -bl / 2)];
+      add(mesh(new THREE.LatheGeometry(barrelPts, 48), color));
+      const capB = mesh(new THREE.CylinderGeometry(outer / 2, outer / 2, 6, 48), 0x374151);
+      capB.position.y = -bl / 2 - 3; add(capB);
+      const capT = capB.clone(); capT.position.y = bl / 2 + 3; add(capT);
+      const rodLen = p.stroke + bl / 2;
+      const rod = mesh(new THREE.CylinderGeometry(p.rod_diameter / 2, p.rod_diameter / 2, rodLen, 32), 0x9ca3af);
+      rod.position.y = bl / 2 + rodLen / 2 - 4; add(rod);
+      break;
+    }
+    case 'valve': {
+      const body = mesh(new THREE.BoxGeometry(p.body_length, p.body_height, p.body_width), color);
+      add(body);
+      const bonnet = mesh(new THREE.CylinderGeometry(p.bonnet_diameter / 2, p.bonnet_diameter / 2, p.body_height / 2, 32), 0x6b7280);
+      bonnet.position.y = p.body_height / 2 + p.body_height / 4; add(bonnet);
+      const stem = mesh(new THREE.CylinderGeometry(4, 4, p.body_height / 2, 16), 0x9ca3af);
+      stem.position.y = p.body_height + p.body_height / 4; add(stem);
+      const wheel = mesh(new THREE.TorusGeometry(p.handwheel_diameter / 2, 3, 10, 48), 0x374151);
+      wheel.rotation.x = Math.PI / 2;
+      wheel.position.y = p.body_height + p.body_height / 2 + 6; add(wheel);
+      break;
+    }
+    case 'pump': {
+      const body = mesh(new THREE.CylinderGeometry(p.housing_diameter / 2, p.housing_diameter / 2, p.housing_length, 48), color);
+      body.rotation.z = Math.PI / 2; add(body);
+      const imp = mesh(new THREE.CylinderGeometry(p.impeller_diameter / 2, p.impeller_diameter / 2, 4, 48), 0x9ca3af);
+      imp.rotation.z = Math.PI / 2; imp.position.x = p.housing_length / 2 + 2; add(imp);
+      const vanes = p.vanes || 6;
+      for (let i = 0; i < vanes; i++) {
+        const a = (i / vanes) * Math.PI * 2;
+        const vane = mesh(new THREE.BoxGeometry(4, p.impeller_diameter / 2 - 4, 6), 0x6b7280);
+        vane.position.set(p.housing_length / 2 + 2, Math.cos(a) * p.impeller_diameter / 4, Math.sin(a) * p.impeller_diameter / 4);
+        vane.rotation.x = -a; add(vane);
+      }
+      const inlet = mesh(new THREE.CylinderGeometry(p.housing_diameter * 0.18, p.housing_diameter * 0.18, p.housing_diameter * 0.4, 24), color);
+      inlet.position.y = p.housing_diameter / 2 + p.housing_diameter * 0.2; add(inlet);
       break;
     }
     default:

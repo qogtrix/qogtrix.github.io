@@ -143,6 +143,167 @@ SOLVER_REGISTRY = {
             "benchmarks in docs/VALIDATION_STAGE6.md",
         ],
     },
+    "gear_train": {
+        "label": "Gear train (ratio, speed, torque, tooth forces)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["z1", "z2", "module_mm", "input_speed_rpm",
+                   "input_torque_Nm", "efficiency", "pressure_angle_deg"],
+        "outputs": ["gear_ratio", "output_speed_rpm", "output_torque_Nm",
+                    "power_in_W", "power_out_W", "pitch_diameter_1_m",
+                    "pitch_diameter_2_m", "centre_distance_m",
+                    "tangential_force_N", "radial_force_N"],
+        "requires": [],
+        "assumptions": [
+            "Spur gears, module in mm, pressure angle 20 deg by default",
+            "Efficiency is a single user-supplied number for the mesh",
+            "Tooth forces from the input torque and pitch diameter",
+        ],
+    },
+    "shaft_combined": {
+        "label": "Shaft under combined bending and torsion",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["diameter_m", "length_m", "torque_Nm",
+                   "bending_moment_Nm", "material_id"],
+        "outputs": ["bending_stress_Pa", "shear_stress_Pa",
+                    "von_mises_stress_Pa", "safety_factor",
+                    "angle_of_twist_rad", "deflection_m"],
+        "requires": ["elastic_modulus_gpa", "poisson_ratio",
+                     "yield_strength_mpa"],
+        "assumptions": [
+            "Solid circular shaft; linear elasticity",
+            "von Mises equivalent stress vs yield strength",
+            "Deflection estimated as a simply supported beam with a "
+            "centre load equivalent to the given bending moment",
+        ],
+    },
+    "bearing_load": {
+        "label": "Bearing load and required dynamic rating",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["radial_load_N", "axial_load_N", "speed_rpm", "life_h"],
+        "outputs": ["equivalent_load_N", "life_million_rev",
+                    "required_rating_N"],
+        "requires": [],
+        "assumptions": [
+            "Deep-groove ball bearing factors: e = 0.22; "
+            "Fa/Fr <= e -> X = 1, Y = 0; otherwise X = 0.56, Y = 1.4",
+            "Basic rating life L10 = (C/P)^3 (ball bearings)",
+        ],
+    },
+    "belt_drive": {
+        "label": "Open belt drive (length, tensions, ratio)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["d1_m", "d2_m", "centre_m", "input_speed_rpm",
+                   "power_W", "mu"],
+        "outputs": ["gear_ratio", "output_speed_rpm", "belt_speed_m_s",
+                    "belt_length_m", "wrap_angle_rad",
+                    "tension_ratio", "tight_tension_N", "slack_tension_N"],
+        "requires": [],
+        "assumptions": [
+            "Open belt (not crossed); capstan equation T1/T2 = e^(mu*beta)",
+            "No slip, no belt stretch, no centrifugal tension",
+        ],
+    },
+    "spring_helical": {
+        "label": "Helical compression spring",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["wire_d_m", "coil_d_m", "coils", "load_N", "material_id"],
+        "outputs": ["spring_rate_N_m", "deflection_m", "shear_stress_Pa",
+                    "wahl_factor", "solid_length_m"],
+        "requires": ["elastic_modulus_gpa", "poisson_ratio"],
+        "assumptions": [
+            "Wahl correction factor for curvature and direct shear",
+            "Shear modulus G = E / (2(1+nu))",
+            "Ends squared and ground assumed for the solid length",
+        ],
+    },
+    "flywheel": {
+        "label": "Flywheel (inertia, stored energy, rim stress)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["outer_d_m", "inner_d_m", "thickness_m", "speed_rpm",
+                   "material_id"],
+        "outputs": ["mass_kg", "inertia_kg_m2", "energy_J",
+                    "rim_speed_m_s", "rim_stress_Pa"],
+        "requires": ["density_kg_m3"],
+        "assumptions": [
+            "Annular disc; inertia I = 1/2 m (Ro^2 + Ri^2)",
+            "Rim stress approximated as rho * v^2 (thin-rim estimate)",
+        ],
+    },
+    "hydraulic_cylinder": {
+        "label": "Hydraulic cylinder (force and speed)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["bore_d_m", "rod_d_m", "pressure_Pa", "flow_m3_s"],
+        "outputs": ["extend_force_N", "retract_force_N",
+                    "extend_speed_m_s", "retract_speed_m_s"],
+        "requires": [],
+        "assumptions": ["Ideal cylinder: no friction, no leakage, incompressible fluid"],
+    },
+    "crank_slider": {
+        "label": "Crank-slider kinematics (position, velocity, acceleration)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["crank_r_m", "rod_l_m", "speed_rpm"],
+        "outputs": ["stroke_m", "max_velocity_m_s", "max_acceleration_m_s2",
+                    "mean_piston_speed_m_s", "series"],
+        "requires": [],
+        "assumptions": [
+            "Rigid crank and rod, constant crank speed, no clearance",
+            "Position measured from the crank centre along the cylinder axis",
+        ],
+    },
+    "fatigue_shaft": {
+        "label": "Shaft fatigue check (modified Goodman)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["diameter_m", "bending_moment_Nm", "torque_Nm",
+                   "material_id"],
+        "outputs": ["alternating_stress_Pa", "mean_stress_Pa",
+                    "goodman_safety_factor", "static_safety_factor"],
+        "requires": ["tensile_strength_mpa", "fatigue_limit_mpa",
+                     "yield_strength_mpa"],
+        "assumptions": [
+            "Rotating shaft: bending fully reversed, torsion steady",
+            "Modified Goodman: 1/SF = sigma_a'/Se + sigma_m'/Sut",
+            "Endurance limit taken as recorded; no surface/size factors applied",
+        ],
+    },
+    "vibration_1dof": {
+        "label": "Single-degree-of-freedom vibration",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["stiffness_N_m", "mass_kg"],
+        "outputs": ["natural_frequency_Hz", "natural_frequency_rad_s",
+                    "period_s", "critical_speed_rpm"],
+        "requires": [],
+        "assumptions": ["Undamped, linear spring-mass system"],
+    },
+    "power_transmission": {
+        "label": "Power from torque and speed",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["torque_Nm", "speed_rpm"],
+        "outputs": ["angular_velocity_rad_s", "power_W", "power_kW", "power_hp"],
+        "requires": [],
+        "assumptions": ["Steady rotation; P = T * omega"],
+    },
     "fea": {
         "label": "Finite element analysis (CalculiX / Code_Aster)",
         "method": "numerical",
@@ -362,4 +523,183 @@ def run_solver(solver, inputs, material_props):
         v = g * t
         return {"fall_time_s": t, "impact_velocity_m_s": v,
                 "impact_kinetic_energy_J": 0.5 * m * v * v}
+    if solver == "gear_train":
+        z1 = inputs.get("z1"); z2 = inputs.get("z2")
+        if not isinstance(z1, int) or isinstance(z1, bool) or z1 < 6:
+            raise ValueError("z1 must be an integer >= 6")
+        if not isinstance(z2, int) or isinstance(z2, bool) or z2 < 6:
+            raise ValueError("z2 must be an integer >= 6")
+        mod = _need_number(inputs, "module_mm") / 1000
+        n1 = _need_number(inputs, "input_speed_rpm", positive=False)
+        T1 = _need_number(inputs, "input_torque_Nm", positive=False)
+        eta = inputs.get("efficiency", 0.95)
+        if not isinstance(eta, (int, float)) or not 0 < eta <= 1:
+            raise ValueError("efficiency must be in (0, 1]")
+        alpha = math.radians(inputs.get("pressure_angle_deg", 20))
+        ratio = z2 / z1
+        d1, d2 = mod * z1, mod * z2
+        n2 = n1 / ratio
+        T2 = T1 * ratio * eta
+        w1 = n1 * 2 * math.pi / 60
+        Ft = 2 * T1 / d1 if d1 else 0
+        return {"gear_ratio": ratio, "output_speed_rpm": n2,
+                "output_torque_Nm": T2, "power_in_W": T1 * w1,
+                "power_out_W": T1 * w1 * eta,
+                "pitch_diameter_1_m": d1, "pitch_diameter_2_m": d2,
+                "centre_distance_m": (d1 + d2) / 2,
+                "tangential_force_N": Ft,
+                "radial_force_N": Ft * math.tan(alpha)}
+    if solver == "shaft_combined":
+        d = _need_number(inputs, "diameter_m")
+        L = _need_number(inputs, "length_m")
+        T = _need_number(inputs, "torque_Nm", positive=False)
+        M = _need_number(inputs, "bending_moment_Nm", positive=False)
+        E = props["elastic_modulus_gpa"] * 1e9
+        nu = props["poisson_ratio"]
+        yld = props["yield_strength_mpa"] * 1e6
+        G = E / (2 * (1 + nu))
+        sigma = 32 * M / (math.pi * d ** 3)
+        tau = 16 * T / (math.pi * d ** 3)
+        vm = math.sqrt(sigma ** 2 + 3 * tau ** 2)
+        J = math.pi * d ** 4 / 32
+        I = math.pi * d ** 4 / 64
+        phi = T * L / (G * J)
+        F_eq = 4 * M / L  # simply supported centre load giving moment M
+        delta = F_eq * L ** 3 / (48 * E * I)
+        return {"bending_stress_Pa": sigma, "shear_stress_Pa": tau,
+                "von_mises_stress_Pa": vm,
+                "safety_factor": _safety_factor(yld, vm),
+                "angle_of_twist_rad": phi, "deflection_m": delta}
+    if solver == "bearing_load":
+        Fr = _need_number(inputs, "radial_load_N", positive=False)
+        Fa = _need_number(inputs, "axial_load_N", positive=False)
+        n = _need_number(inputs, "speed_rpm", positive=False)
+        Lh = _need_number(inputs, "life_h")
+        ratio_f = Fa / Fr if Fr else 0
+        if ratio_f <= 0.22:
+            X, Y = 1.0, 0.0
+        else:
+            X, Y = 0.56, 1.4
+        P = X * Fr + Y * Fa
+        L10 = 60 * n * Lh / 1e6
+        return {"equivalent_load_N": P, "life_million_rev": L10,
+                "required_rating_N": P * L10 ** (1 / 3)}
+    if solver == "belt_drive":
+        d1 = _need_number(inputs, "d1_m"); d2 = _need_number(inputs, "d2_m")
+        C = _need_number(inputs, "centre_m")
+        n1 = _need_number(inputs, "input_speed_rpm", positive=False)
+        Pwr = _need_number(inputs, "power_W", positive=False)
+        mu = inputs.get("mu", 0.3)
+        if not isinstance(mu, (int, float)) or mu <= 0:
+            raise ValueError("mu must be a positive number")
+        ratio = d2 / d1
+        v = math.pi * d1 * n1 / 60
+        Lb = 2 * C + math.pi / 2 * (d1 + d2) + (d2 - d1) ** 2 / (4 * C)
+        beta = math.pi - 2 * math.asin(min(1, (d2 - d1) / (2 * C)))
+        tr = math.exp(mu * beta)
+        dT = Pwr / v if v else 0
+        T1 = dT * tr / (tr - 1) if tr > 1 else dT
+        return {"gear_ratio": ratio, "output_speed_rpm": n1 / ratio,
+                "belt_speed_m_s": v, "belt_length_m": Lb,
+                "wrap_angle_rad": beta, "tension_ratio": tr,
+                "tight_tension_N": T1, "slack_tension_N": T1 - dT}
+    if solver == "spring_helical":
+        dw = _need_number(inputs, "wire_d_m")
+        Dc = _need_number(inputs, "coil_d_m")
+        n = inputs.get("coils")
+        if not isinstance(n, (int, float)) or n < 1:
+            raise ValueError("coils must be >= 1")
+        F = _need_number(inputs, "load_N", positive=False)
+        E = props["elastic_modulus_gpa"] * 1e9
+        nu = props["poisson_ratio"]
+        G = E / (2 * (1 + nu))
+        k = G * dw ** 4 / (8 * Dc ** 3 * n)
+        Cidx = Dc / dw
+        Kw = (4 * Cidx - 1) / (4 * Cidx - 4) + 0.615 / Cidx
+        tau = Kw * 8 * F * Dc / (math.pi * dw ** 3)
+        return {"spring_rate_N_m": k, "deflection_m": F / k if k else 0,
+                "shear_stress_Pa": tau, "wahl_factor": Kw,
+                "solid_length_m": n * dw}
+    if solver == "flywheel":
+        Do = _need_number(inputs, "outer_d_m")
+        Di = inputs.get("inner_d_m", 0) or 0
+        if not isinstance(Di, (int, float)) or Di < 0 or Di >= Do:
+            raise ValueError("inner_d_m must be >= 0 and smaller than outer_d_m")
+        th = _need_number(inputs, "thickness_m")
+        n = _need_number(inputs, "speed_rpm", positive=False)
+        rho = props["density_kg_m3"]
+        mass = rho * math.pi / 4 * (Do ** 2 - Di ** 2) * th
+        I = 0.5 * mass * ((Do / 2) ** 2 + (Di / 2) ** 2)
+        w = n * 2 * math.pi / 60
+        v = w * Do / 2
+        return {"mass_kg": mass, "inertia_kg_m2": I,
+                "energy_J": 0.5 * I * w * w, "rim_speed_m_s": v,
+                "rim_stress_Pa": rho * v * v}
+    if solver == "hydraulic_cylinder":
+        bore = _need_number(inputs, "bore_d_m")
+        rod = _need_number(inputs, "rod_d_m")
+        p = _need_number(inputs, "pressure_Pa")
+        Q = _need_number(inputs, "flow_m3_s", positive=False)
+        if rod >= bore:
+            raise ValueError("rod_d_m must be smaller than bore_d_m")
+        A_ext = math.pi / 4 * bore ** 2
+        A_ret = math.pi / 4 * (bore ** 2 - rod ** 2)
+        return {"extend_force_N": p * A_ext, "retract_force_N": p * A_ret,
+                "extend_speed_m_s": Q / A_ext if A_ext else 0,
+                "retract_speed_m_s": Q / A_ret if A_ret else 0}
+    if solver == "crank_slider":
+        r = _need_number(inputs, "crank_r_m")
+        l = _need_number(inputs, "rod_l_m")
+        n = _need_number(inputs, "speed_rpm", positive=False)
+        if l <= r:
+            raise ValueError("rod_l_m must be larger than crank_r_m")
+        w = n * 2 * math.pi / 60
+        series = []
+        max_v = 0.0; max_a = 0.0
+        for deg in range(0, 721, 10):
+            th = math.radians(deg)
+            s_, c_ = math.sin(th), math.cos(th)
+            root = math.sqrt(max(l * l - r * r * s_ * s_, 0))
+            x = r * c_ + root
+            ds = -r * s_ - (r * r * s_ * c_) / root if root else -r * s_
+            d2s = -r * c_ - ((r * r * (2 * c_ * c_ - 1)) / root
+                             + (r ** 4 * s_ * s_ * c_ * c_) / (root ** 3)) if root else -r * c_
+            v = w * ds; a = w * w * d2s
+            max_v = max(max_v, abs(v)); max_a = max(max_a, abs(a))
+            series.append({"angle_deg": deg, "position_m": round(x, 6),
+                           "velocity_m_s": round(v, 4),
+                           "acceleration_m_s2": round(a, 3)})
+        return {"stroke_m": 2 * r, "max_velocity_m_s": round(max_v, 4),
+                "max_acceleration_m_s2": round(max_a, 3),
+                "mean_piston_speed_m_s": 2 * (2 * r) * n / 60,
+                "series": series}
+    if solver == "fatigue_shaft":
+        d = _need_number(inputs, "diameter_m")
+        M = _need_number(inputs, "bending_moment_Nm", positive=False)
+        T = _need_number(inputs, "torque_Nm", positive=False)
+        Sut = props["tensile_strength_mpa"] * 1e6
+        Se = props["fatigue_limit_mpa"] * 1e6
+        yld = props["yield_strength_mpa"] * 1e6
+        sigma_a = 32 * M / (math.pi * d ** 3)
+        tau_m = 16 * T / (math.pi * d ** 3)
+        sigma_m = math.sqrt(3) * tau_m
+        sf_goodman = 1 / (sigma_a / Se + sigma_m / Sut) if (sigma_a or sigma_m) else None
+        sigma_static = math.sqrt(sigma_a ** 2 + 3 * tau_m ** 2)
+        return {"alternating_stress_Pa": sigma_a, "mean_stress_Pa": sigma_m,
+                "goodman_safety_factor": sf_goodman,
+                "static_safety_factor": _safety_factor(yld, sigma_static)}
+    if solver == "vibration_1dof":
+        k = _need_number(inputs, "stiffness_N_m")
+        m = _need_number(inputs, "mass_kg")
+        wn = math.sqrt(k / m)
+        fn = wn / (2 * math.pi)
+        return {"natural_frequency_Hz": fn, "natural_frequency_rad_s": wn,
+                "period_s": 1 / fn if fn else 0, "critical_speed_rpm": fn * 60}
+    if solver == "power_transmission":
+        T = _need_number(inputs, "torque_Nm", positive=False)
+        n = _need_number(inputs, "speed_rpm", positive=False)
+        w = n * 2 * math.pi / 60
+        P = T * w
+        return {"angular_velocity_rad_s": w, "power_W": P,
+                "power_kW": P / 1000, "power_hp": P / 745.7}
     raise ValueError(f"solver {solver} has no analytical implementation")

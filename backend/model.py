@@ -13,7 +13,9 @@ UNITS = {"mm": 1.0, "cm": 10.0, "m": 1000.0, "in": 25.4}
 PRIMITIVE_KINDS = ["box", "cylinder", "sphere", "cone", "torus",
                    "rounded_box", "chamfered_box", "extrude", "revolve"]
 COMPONENT_KINDS = ["gear", "shaft", "bearing", "bolt", "nut",
-                   "spring", "piston", "pipe", "beam", "motor", "enclosure"]
+                   "spring", "piston", "pipe", "beam", "motor", "enclosure",
+                   "crankshaft", "connecting_rod", "flywheel", "clutch", "brake_disc",
+                   "coupling", "pulley", "sprocket", "hydraulic_cylinder", "valve", "pump"]
 BOOLEAN_OPS = ["union", "subtract", "intersect"]
 
 MODEL_SCHEMA = {
@@ -211,6 +213,80 @@ def analytic_volume(comp):
         if None in (bo, bi, w):
             return {"value": None, "exact": False, "note": "missing dimension"}
         return {"value": math.pi / 4 * (bo * bo - bi * bi) * w, "exact": False, "note": "estimate: balls and races ignored"}
+    if kind == "crankshaft":
+        md, cd2, th, Lj = _num(p, "main_diameter"), _num(p, "crank_diameter"), _num(p, "throw"), _num(p, "length")
+        if None in (md, cd2, th, Lj):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        v = math.pi * (md / 2) ** 2 * Lj * 0.7 + math.pi * (cd2 / 2) ** 2 * 24 + 2 * 8 * (th + md / 2 + cd2 / 2) * md
+        return {"value": v, "exact": False, "note": "estimate: webs approximated as boxes"}
+    if kind == "connecting_rod":
+        bd, sd, Lr, wr = _num(p, "big_diameter"), _num(p, "small_diameter"), _num(p, "length"), _num(p, "width")
+        if None in (bd, sd, Lr, wr):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        big = math.pi / 4 * (bd * bd - (bd * 0.6) ** 2) * wr
+        small = math.pi / 4 * (sd * sd - (sd * 0.5) ** 2) * wr
+        shank = max(0, Lr - (bd + sd) / 2) * wr * wr * 0.6
+        return {"value": big + small + shank, "exact": False,
+                "note": "estimate: bore sizes assumed (big 60%, small 50% of outer)"}
+    if kind == "flywheel":
+        Df, tf, hub, bore = _num(p, "diameter"), _num(p, "thickness"), _num(p, "hub_diameter"), _num(p, "bore_diameter")
+        if None in (Df, tf, hub):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        v = math.pi / 4 * (Df * Df - (bore or 0) ** 2) * tf + math.pi / 4 * hub * hub * 16
+        return {"value": v, "exact": True, "note": "disc with bore + hub ring"}
+    if kind == "clutch":
+        Dc, tc, bore = _num(p, "diameter"), _num(p, "thickness"), _num(p, "bore_diameter")
+        if None in (Dc, tc):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        return {"value": math.pi / 4 * (Dc * Dc - (bore or 0) ** 2) * tc, "exact": True, "note": "plate pack as one annulus"}
+    if kind == "brake_disc":
+        Db, tb, bore, hub = _num(p, "diameter"), _num(p, "thickness"), _num(p, "bore_diameter"), _num(p, "hub_diameter")
+        if None in (Db, tb):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        v = math.pi / 4 * (Db * Db - (bore or 0) ** 2) * tb
+        if hub is not None:
+            v += math.pi / 4 * hub * hub * tb
+        return {"value": v, "exact": True, "note": ""}
+    if kind == "coupling":
+        Dcp, Lcp, bore = _num(p, "diameter"), _num(p, "length"), _num(p, "bore_diameter")
+        if None in (Dcp, Lcp):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        return {"value": math.pi / 4 * (Dcp * Dcp - (bore or 0) ** 2) * Lcp, "exact": False, "note": "estimate: bolts ignored"}
+    if kind == "pulley":
+        Dp, wp, bore, gd = _num(p, "diameter"), _num(p, "width"), _num(p, "bore_diameter"), _num(p, "groove_depth")
+        if None in (Dp, wp):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        v = math.pi / 4 * (Dp * Dp - (bore or 0) ** 2) * wp
+        if gd is not None:
+            v -= math.pi * Dp * gd * gd
+        return {"value": max(0, v), "exact": False, "note": "estimate: V-groove approximated"}
+    if kind == "sprocket":
+        teeth, pitch, ts, bore = _num(p, "teeth"), _num(p, "pitch"), _num(p, "thickness"), _num(p, "bore_diameter")
+        if None in (teeth, pitch, ts):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        pd = pitch / math.sin(math.pi / teeth)
+        outer = pd + pitch * 0.6
+        return {"value": math.pi / 4 * (outer * outer - (bore or 0) ** 2) * ts * 0.85, "exact": False,
+                "note": "estimate: teeth approximated as 85% of the outer cylinder"}
+    if kind == "hydraulic_cylinder":
+        bore, rod, stroke, barrel = _num(p, "bore_diameter"), _num(p, "rod_diameter"), _num(p, "stroke"), _num(p, "barrel_length")
+        if None in (bore, rod, stroke, barrel):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        wall = 5  # assumed barrel wall thickness, mm (stated in docs)
+        v = math.pi / 4 * ((bore + 2 * wall) ** 2 - bore * bore) * barrel + math.pi / 4 * rod * rod * (stroke + barrel / 2)
+        return {"value": v, "exact": False, "note": "estimate: barrel wall assumed 5 mm"}
+    if kind == "valve":
+        bl, bw, bh, bon, hw = (_num(p, k) for k in ("body_length", "body_width", "body_height", "bonnet_diameter", "handwheel_diameter"))
+        if None in (bl, bw, bh, bon, hw):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        v = bl * bw * bh + math.pi / 4 * bon * bon * (bh / 2) + 2 * math.pi ** 2 * (hw / 2) * 3 * 3
+        return {"value": v, "exact": False, "note": "estimate: handwheel tube assumed 3 mm"}
+    if kind == "pump":
+        Dh, Lh, imp = _num(p, "housing_diameter"), _num(p, "housing_length"), _num(p, "impeller_diameter")
+        if None in (Dh, Lh, imp):
+            return {"value": None, "exact": False, "note": "missing dimension"}
+        return {"value": math.pi / 4 * Dh * Dh * Lh + math.pi / 4 * imp * imp * (Lh / 3) * 0.5,
+                "exact": False, "note": "estimate: impeller vanes approximated"}
     if kind in ("boolean", "mesh"):
         return {"value": None, "exact": False,
                 "note": "boolean/mesh volume needs the mesh — computed in the browser"}
@@ -302,6 +378,61 @@ def _validate_params(comp, errors, where):
             errors.append(f"{where}.params.inner_diameter must be smaller than outer_diameter")
     elif kind == "beam":
         pos("length"); pos("height"); pos("flange_width"); pos("flange_thickness"); pos("web_thickness")
+    elif kind == "crankshaft":
+        pos("main_diameter"); pos("crank_diameter"); pos("throw"); pos("length")
+        j = p.get("journals")
+        if not isinstance(j, int) or isinstance(j, bool) or j < 2:
+            errors.append(f"{where}.params.journals must be an integer >= 2")
+    elif kind == "connecting_rod":
+        pos("big_diameter"); pos("small_diameter"); pos("length"); pos("width")
+    elif kind == "flywheel":
+        pos("diameter"); pos("thickness"); pos("hub_diameter")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+    elif kind == "clutch":
+        pos("diameter"); pos("thickness")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+        pl = p.get("plates")
+        if not isinstance(pl, int) or isinstance(pl, bool) or pl < 1:
+            errors.append(f"{where}.params.plates must be an integer >= 1")
+    elif kind == "brake_disc":
+        pos("diameter"); pos("thickness")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+        if "hub_diameter" in p:
+            pos("hub_diameter")
+    elif kind == "coupling":
+        pos("diameter"); pos("length")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+        bo = p.get("bolts")
+        if not isinstance(bo, int) or isinstance(bo, bool) or bo < 2:
+            errors.append(f"{where}.params.bolts must be an integer >= 2")
+    elif kind == "pulley":
+        pos("diameter"); pos("width")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+        if "groove_depth" in p:
+            pos("groove_depth")
+    elif kind == "sprocket":
+        pos("pitch"); pos("thickness")
+        if "bore_diameter" in p:
+            pos("bore_diameter")
+        te = p.get("teeth")
+        if not isinstance(te, int) or isinstance(te, bool) or te < 6:
+            errors.append(f"{where}.params.teeth must be an integer >= 6")
+    elif kind == "hydraulic_cylinder":
+        pos("bore_diameter"); pos("rod_diameter"); pos("stroke"); pos("barrel_length")
+        if _is_num(p.get("rod_diameter")) and _is_num(p.get("bore_diameter")) and p["rod_diameter"] >= p["bore_diameter"]:
+            errors.append(f"{where}.params.rod_diameter must be smaller than bore_diameter")
+    elif kind == "valve":
+        pos("body_length"); pos("body_width"); pos("body_height"); pos("bonnet_diameter"); pos("handwheel_diameter")
+    elif kind == "pump":
+        pos("housing_diameter"); pos("housing_length"); pos("impeller_diameter")
+        va = p.get("vanes")
+        if not isinstance(va, int) or isinstance(va, bool) or va < 3:
+            errors.append(f"{where}.params.vanes must be an integer >= 3")
     elif kind == "motor":
         pos("diameter"); pos("length"); pos("shaft_diameter"); pos("shaft_length")
     elif kind == "enclosure":

@@ -414,3 +414,55 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   bounding boxes (ball for spheres); KE chart is
   translational only; electrical simulation is still the
   Stage 1 stub.
+
+---
+
+# Stage 7 — Mechanical Engineering Laboratory (19 Nov 2026)
+
+## 24. What changed
+
+- **Component library extended:** 11 new kinds in
+  `assets/js/model-math.js` + `backend/model.py` (validation
+  and analytic volumes, JS/Python mirrors) + builders in
+  `assets/js/model-kernel.js` + inspector specs, defaults and
+  add-buttons in `assets/js/modeller.js` / `workspace.html`:
+  crankshaft, connecting_rod, flywheel, clutch, brake_disc,
+  coupling, pulley, sprocket, hydraulic_cylinder, valve, pump.
+  Volumes are exact where the closed form is exact and
+  flagged estimates elsewhere (webs, bores, barrel wall,
+  vanes). Extruded circles use `curveSegments: 48` (the
+  default 12 lost ~2.5% of the volume — found by the kernel
+  test).
+- **Mechanical solvers:** 11 analytical solvers in
+  `backend/solvers.py` (gear_train, shaft_combined,
+  bearing_load, belt_drive, spring_helical, flywheel,
+  hydraulic_cylinder, crank_slider, fatigue_shaft,
+  vibration_1dof, power_transmission), all in the registry,
+  all run through the Stage 6 job API. Material properties
+  are required from Stage 4; missing ones are named errors.
+- **Mechanical workspace:** `mechanical.html` +
+  `assets/js/mechanical.js` — project/model loading, 3D
+  assembly preview (evaluateModel + orbit, exploded view),
+  assembly tree and summary, component library (adds via the
+  model API), gear-train calculator (reads gears from the
+  model), crank-slider animator (exact kinematics on a 2D
+  canvas + the 720° backend analysis), calculation panel for
+  the 11 solvers, bill of materials (CSV + print), material
+  alternatives (Stage 4 recommender against the component's
+  current material).
+- **Demo assemblies:** `workspace/test-models/mechanical/` —
+  gear_transmission (20T/40T, ratio 2:1, shafts + bearings),
+  crank_slider (crankshaft + rod + piston + block + flywheel),
+  rotating_shaft (stepped shaft + bearings + flywheel +
+  coupling + motor), hydraulic_lift (cylinder + base + load +
+  bolts).
+- **Tests:** `backend/test_stage7.py` 99/99,
+  `backend/test_stage7_math.js` 36/36,
+  `backend/test_stage7_kernel.mjs` 22/22. Stages 2–6 suites
+  still green (health assertions accept stage 7).
+- **Limits, stated in the UI and docs:** conceptual designs
+  only — no FEA/CFD, no constraint solver (gear meshing is a
+  calculation, not simulated contact), components are
+  simplified representations (see docs/MECHANICAL.md), the
+  crank-slider is single-throw, optimisation is a material
+  comparison, not an automated designer.

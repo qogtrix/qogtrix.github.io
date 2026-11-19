@@ -273,3 +273,54 @@ actually built and checked. Anything labelled "Stage 2" is not done.
 - [ ] Electrical simulation still a Stage 1 stub (501)
 - [ ] Collision shapes are bounding boxes (ball for spheres)
 - [ ] KE chart is translational only
+
+---
+
+# Stage 7 — Mechanical Engineering Laboratory (19 Nov 2026)
+
+## Completed in Stage 7
+
+- [x] Mechanical design environment: dedicated workspace with
+      assembly inspection, exploded view, hierarchies
+- [x] Component library: 11 new editable components (crankshaft,
+      connecting rod, flywheel, clutch, brake disc, coupling,
+      pulley, sprocket, hydraulic cylinder, valve, pump) plus the
+      11 from Stage 5
+- [x] Mechanical systems: gearbox, crank-slider engine parts,
+      hydraulic lift, rotating machinery — as demo assemblies
+      with real geometry
+- [x] Motion and kinematics: crank-slider exact kinematics
+      (animated + 720° analysis); revolute/fixed/spring joints
+      reused from Stage 6
+- [x] Engineering calculations: torque, speed, power, gear
+      ratios, efficiency, friction (belt), bearing loads, shaft
+      stress, bending, fatigue (Goodman), vibration, heat
+      (lumped thermal, Stage 6) — formulas, units, inputs and
+      assumptions shown
+- [x] Simulation integration: mechanical assemblies run on the
+      Stage 6 Rapier workspace; analytical results stored as
+      jobs
+- [x] Optimization preparation: material-alternative comparison
+      on real Stage 4 data, checked against the component's
+      current requirements
+- [x] AI mechanical engineer: structured tools documented in
+      docs/MUSE_INTEGRATION.md (build a machine from a
+      natural-language request, run calculations, read results,
+      propose and test improvements)
+- [x] Documentation: BOM (CSV + print), calculation reports,
+      simulation reports via the job system
+- [x] Testing: 4 demo projects verified (geometry, volumes,
+      calculations, API jobs)
+
+## Honest limits
+
+- [ ] No FEA (no stress/strain fields) and no CFD — analytical
+      only, labelled as such
+- [ ] No constraint solver — gear meshing is a calculation,
+      not simulated contact
+- [ ] Components are simplified representations (see
+      docs/MECHANICAL.md); single-throw crankshaft only
+- [ ] Optimisation is a material comparison, not an automated
+      designer
+- [ ] Nothing here is validated for manufacturing or real-world
+      operation — conceptual designs only
