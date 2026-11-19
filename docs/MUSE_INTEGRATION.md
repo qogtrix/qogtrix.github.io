@@ -178,3 +178,49 @@ volume the API returns as null (booleans, imported meshes).
   before/after numbers. Never claim a design is safe to build:
   everything here is conceptual until a qualified engineer
   reviews it and a real FEA/CFD validation exists.
+
+
+---
+
+## Electrical engineering (Stage 8) — structured tools for Muse
+
+- **Build a circuit from a request:** translate the request
+  into components from the circuit schema
+  (`GET /api/v1/circuits/schema`): resistor, capacitor,
+  inductor, voltage/current source, diode, LED, NPN/PNP,
+  NMOS/PMOS, op-amp, switch, relay, ground. Give every
+  component an id and net names in `nodes` (`"0"` is
+  ground), or terminal labels plus a `connections` list.
+  Validate with `POST /api/v1/circuits/validate` before
+  running.
+- **Run a real simulation:** `POST /api/v1/circuits/simulate`
+  with `analysis` `{type: "dc"}`, `{type: "transient",
+  duration, steps}` or `{type: "ac", f_start, f_stop,
+  points}`. Read the job's results: node voltages, branch
+  currents, power per component, time series, or Bode
+  magnitude/phase. Compare the result with the analytical
+  solver for the same circuit (RC tau, RLC resonance) and
+  say so when they agree — and when they do not.
+- **Calculate first, simulate second:** for a quick answer
+  use the analytical solvers through the job API
+  (`ohm_law`, `rc_time_constant`, `rlc_resonance`,
+  `ac_power`, `transformer`, `dc_motor`,
+  `battery_config`, `solenoid`, `wire_resistance`).
+  `wire_resistance` needs a material whose resistivity is
+  on record — check the material first; a missing value is
+  an error, never a guess.
+- **Motor + gearbox:** use `motor_gearbox` to connect a DC
+  motor to a gear pair: electrical input in, mechanical
+  output out, with the combined efficiency. If the load
+  exceeds the stall torque the solver refuses — report
+  that, and propose a bigger motor or a different ratio.
+- **Find circuit problems:** read the simulation's warnings
+  (hazardous voltage above 50 V, a resistor above its
+  rating), check node voltages against the design intent,
+  and check power balance (the source's negative power
+  should match the resistors' positive power). Suggest a
+  concrete change (different value, added resistor, lower
+  supply) and re-run to show the before/after numbers.
+- **Never present a design as safe to build:** everything
+  here is conceptual until a qualified engineer reviews it
+  and real hardware is tested. Say that with every design.

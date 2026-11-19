@@ -1,0 +1,9 @@
+{
+  "name": "RLC series resonance",
+  "components": [
+    {"id": "V1", "type": "voltage_source", "nodes": ["in", "0"], "params": {"value": 1, "waveform": "sine", "amplitude": 1, "frequency": 5032.9}},
+    {"id": "R1", "type": "resistor", "nodes": ["in", "a"], "params": {"value": 100, "rating_W": 0.25}},
+    {"id": "L1", "type": "inductor", "nodes": ["a", "b"], "params": {"value": 0.01}},
+    {"id": "C1", "type": "capacitor", "nodes": ["b", "0"], "params": {"value": 1e-07}}
+  ]
+}

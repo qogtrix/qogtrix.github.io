@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electrical Laboratory — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .elec-layout { display: grid; grid-template-columns: 240px 1fr 300px; gap: 12px; }
+  @media (max-width: 1100px) { .elec-layout { grid-template-columns: 1fr; } }
+  #schematic { width: 100%; height: 520px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; cursor: crosshair; }
+  .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .palette button.active { outline: 2px solid var(--hatch-widget-accent); }
+  .chart { width: 100%; height: 220px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  .safety { background: #3a2a00; border: 1px solid #8a6d00; color: #ffe08a; padding: 10px 12px; border-radius: 8px; }
+  .warn-list { color: #ffb020; }
+  table.results td, table.results th { padding: 4px 8px; }
+  .field-row label { min-width: 130px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="sidebar">
+    <div class="brand">AI Engineering<br>Laboratory</div>
+    <div class="brand-sub">Stage 8 · Electrical</div>
+    <nav>
+      <a class="nav-link" href="index.html"><span class="ic">⌂</span> Dashboard</a>
+      <a class="nav-link" href="projects.html"><span class="ic">▦</span> My Projects</a>
+      <a class="nav-link" href="gallery.html"><span class="ic">▤</span> Public Gallery</a>
+      <a class="nav-link" href="materials.html"><span class="ic">▣</span> Materials Library</a>
+      <a class="nav-link" href="workspace.html"><span class="ic">⬡</span> 3D Workspace</a>
+      <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+      <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical Lab</a>
+      <a class="nav-link active" href="electrical.html"><span class="ic">⚡</span> Electrical Lab</a>
+      <a class="nav-link" href="labs/electrical.html"><span class="ic">⌁</span> Electrical (lab page)</a>
+      <a class="nav-link" href="auth.html"><span class="ic">◉</span> Sign in</a>
+      <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Settings</a>
+    </nav>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <h1>Electrical Engineering Laboratory</h1>
+      <span class="badge stage">STAGE 8</span>
+    </div>
+
+    <div class="safety">
+      <strong>Electrical safety.</strong> Everything here is a <em>conceptual design</em> analysed by
+      a real circuit solver. Nothing on this page is validated for a real electrical installation.
+      Voltages above 50&nbsp;V are flagged as hazardous; never touch a live circuit, and never build
+      mains-voltage hardware from an unreviewed design. If a component's power exceeds its rating,
+      the result says so — believe it.
+    </div>
+
+    <div class="tabs" style="margin-top:12px">
+      <button class="tab active" data-tab="designer">Circuit Designer</button>
+      <button class="tab" data-tab="calcs">Calculations</button>
+      <button class="tab" data-tab="motors">Motors &amp; Batteries</button>
+      <button class="tab" data-tab="jobs">Simulation Jobs</button>
+    </div>
+
+    <!-- ============ CIRCUIT DESIGNER ============ -->
+    <section id="tab-designer">
+      <div class="card">
+        <div class="field-row">
+          <label for="project-select">Project</label>
+          <select id="project-select"><option value="">(guest — circuit saved locally only)</option></select>
+          <label for="demo-select">Demo circuit</label>
+          <select id="demo-select">
+            <option value="">— load a demo —</option>
+            <option value="voltage_divider">Voltage divider (DC)</option>
+            <option value="rc_circuit">RC step response (transient)</option>
+            <option value="rlc_circuit">RLC resonance (AC)</option>
+            <option value="rectifier">Half-wave rectifier (transient)</option>
+          </select>
+          <button class="btn" id="btn-save-circuit">Save JSON</button>
+          <button class="btn" id="btn-load-circuit">Load JSON</button>
+          <input type="file" id="file-circuit" accept=".json" hidden>
+        </div>
+        <p class="small muted" id="circuit-status">Place components from the palette, then click two terminals to wire them. Drag a component to move it. Click a component to edit it.</p>
+      </div>
+
+      <div class="elec-layout">
+        <div class="card">
+          <h3>Components</h3>
+          <div class="palette" id="palette"></div>
+          <h3 style="margin-top:14px">Tools</h3>
+          <div class="btn-row">
+            <button class="btn" id="tool-wire">Wire</button>
+            <button class="btn" id="tool-select">Select</button>
+            <button class="btn danger" id="btn-clear">Clear</button>
+          </div>
+          <h3 style="margin-top:14px">Run simulation</h3>
+          <div class="field-row"><label>Analysis</label>
+            <select id="analysis-type">
+              <option value="dc">DC operating point</option>
+              <option value="transient" selected>Transient</option>
+              <option value="ac">AC frequency sweep</option>
+            </select>
+          </div>
+          <div class="field-row" data-analysis="transient"><label>Duration (s)</label><input id="an-duration" type="text" value="0.005"></div>
+          <div class="field-row" data-analysis="transient"><label>Steps</label><input id="an-steps" type="number" value="200" min="10" max="5000"></div>
+          <div class="field-row" data-analysis="ac"><label>Start freq (Hz)</label><input id="an-fstart" type="text" value="10"></div>
+          <div class="field-row" data-analysis="ac"><label>Stop freq (Hz)</label><input id="an-fstop" type="text" value="100000"></div>
+          <div class="field-row" data-analysis="ac"><label>Points</label><input id="an-points" type="number" value="20" min="2" max="200"></div>
+          <div class="field-row"><label>Output node</label>
+            <select id="an-output-node"><option value="">(all nodes)</option></select>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" id="btn-run">Run simulation</button>
+            <button class="btn" id="btn-validate">Validate</button>
+          </div>
+          <p class="small muted">The solver is a real Modified Nodal Analysis engine (Newton-Raphson for diodes, BJTs and MOSFETs; backward Euler for transients). No ngspice is installed on this machine — this is our own solver, and it says so in the results.</p>
+        </div>
+
+        <div class="card">
+          <canvas id="schematic" width="880" height="520"></canvas>
+          <div id="sim-results" style="margin-top:12px"></div>
+          <div id="sim-warnings" class="warn-list" style="margin-top:8px"></div>
+        </div>
+
+        <div class="card">
+          <h3>Selected component</h3>
+          <div id="inspector"><p class="small muted">Nothing selected.</p></div>
+          <h3 style="margin-top:14px">Bill of materials</h3>
+          <div id="bom"></div>
+          <div class="btn-row"><button class="btn" id="btn-bom-csv">Download BOM (CSV)</button></div>
+          <h3 style="margin-top:14px">Wiring</h3>
+          <div id="wire-list"><p class="small muted">No wires yet.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CALCULATIONS ============ -->
+    <section id="tab-calcs" hidden>
+      <div class="card">
+        <h2>Electrical calculations</h2>
+        <p>Analytical, closed-form calculations — formulas, units and assumptions are shown with every result. These are not simulations.</p>
+        <div class="field-row"><label for="calc-solver">Calculation</label><select id="calc-solver"></select></div>
+        <div id="calc-form"></div>
+        <div class="btn-row"><button class="btn primary" id="btn-calc-run">Calculate</button></div>
+        <div id="calc-results" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ============ MOTORS & BATTERIES ============ -->
+    <section id="tab-motors" hidden>
+      <div class="card">
+        <h2>DC motor</h2>
+        <p class="small muted">Steady state: torque constant Kt, back-EMF constant Ke, armature resistance only. No iron or friction losses.</p>
+        <div class="field-row"><label>Supply voltage (V)</label><input id="m-volt" type="number" value="12" step="any"></div>
+        <div class="field-row"><label>Armature resistance (Ω)</label><input id="m-ra" type="number" value="1.5" step="any"></div>
+        <div class="field-row"><label>Kt (N·m/A)</label><input id="m-kt" type="number" value="0.05" step="any"></div>
+        <div class="field-row"><label>Ke (V·s/rad)</label><input id="m-ke" type="number" value="0.05" step="any"></div>
+        <div class="field-row"><label>Load torque (N·m)</label><input id="m-tl" type="number" value="0.1" step="any"></div>
+        <div class="btn-row"><button class="btn primary" id="btn-motor-run">Run motor calculation</button></div>
+        <div id="motor-results" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Motor + gearbox <span class="badge">Stage 7 integration</span></h2>
+        <p class="small muted">The same motor driving a gear pair. Output torque = motor torque × ratio × efficiency; output speed = motor speed ÷ ratio. Uses the Stage 7 gear-train model.</p>
+        <div class="field-row"><label>Load torque at output (N·m)</label><input id="mg-tl" type="number" value="0.2" step="any"></div>
+        <div class="field-row"><label>Gear ratio (output : input)</label><input id="mg-ratio" type="number" value="2" step="any"></div>
+        <div class="field-row"><label>Gear efficiency (0–1)</label><input id="mg-eff" type="number" value="0.95" step="any"></div>
+        <div class="btn-row"><button class="btn primary" id="btn-motor-gear-run">Run motor + gearbox</button></div>
+        <div id="motor-gear-results" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Battery pack</h2>
+        <p class="small muted">Identical cells, no imbalance, no Peukert effect. A 4s2p pack of 3.7&nbsp;V / 2.6&nbsp;Ah cells is 14.8&nbsp;V, 5.2&nbsp;Ah, 76.96&nbsp;Wh.</p>
+        <div class="field-row"><label>Cell voltage (V)</label><input id="b-v" type="number" value="3.7" step="any"></div>
+        <div class="field-row"><label>Cell capacity (Ah)</label><input id="b-ah" type="number" value="2.6" step="any"></div>
+        <div class="field-row"><label>Cells in series</label><input id="b-s" type="number" value="4" min="1"></div>
+        <div class="field-row"><label>Strings in parallel</label><input id="b-p" type="number" value="2" min="1"></div>
+        <div class="field-row"><label>Load current (A)</label><input id="b-i" type="number" value="2" step="any"></div>
+        <div class="btn-row"><button class="btn primary" id="btn-battery-run">Run battery calculation</button></div>
+        <div id="battery-results" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Transformer</h2>
+        <div class="field-row"><label>Primary voltage (V)</label><input id="t-v1" type="number" value="230" step="any"></div>
+        <div class="field-row"><label>Primary turns</label><input id="t-n1" type="number" value="460" min="1"></div>
+        <div class="field-row"><label>Secondary turns</label><input id="t-n2" type="number" value="24" min="1"></div>
+        <div class="field-row"><label>Efficiency (0–1)</label><input id="t-eff" type="number" value="0.95" step="any"></div>
+        <div class="field-row"><label>Load power (W)</label><input id="t-p" type="number" value="100" step="any"></div>
+        <div class="btn-row"><button class="btn primary" id="btn-transformer-run">Run transformer calculation</button></div>
+        <div id="transformer-results" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ============ JOBS ============ -->
+    <section id="tab-jobs" hidden>
+      <div class="card">
+        <h2>Simulation jobs</h2>
+        <p class="small muted">Every circuit simulation and calculation is stored as a job with its inputs and results, owned by you.</p>
+        <div class="btn-row"><button class="btn" id="btn-jobs-refresh">Refresh</button></div>
+        <div id="jobs-list" style="margin-top:12px"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="assets/js/electrical.js"></script>
+</body>
+</html>

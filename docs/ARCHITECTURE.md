@@ -466,3 +466,56 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   simplified representations (see docs/MECHANICAL.md), the
   crank-slider is single-throw, optimisation is a material
   comparison, not an automated designer.
+
+---
+
+# Stage 8 — Electrical Engineering Laboratory (19 Nov 2026)
+
+## 25. What changed
+
+- **Circuit simulator:** `backend/circuit.py` — a real MNA
+  solver (DC Newton-Raphson with junction limiting and gmin,
+  backward-Euler transient with companion models, complex
+  small-signal AC). Components: resistor, capacitor,
+  inductor, voltage/current sources (dc/step/sine/pulse),
+  diode, LED, NPN/PNP (simplified Ebers-Moll), NMOS/PMOS
+  (Level-1), op-amp (ideal VCVS), switch, relay (as switch),
+  ground. Circuits are JSON: components with net names, or
+  terminal labels plus a connections list resolved by
+  union-find (the same resolution the frontend editor uses).
+  ngspice/FEMM/Elmer were checked and are NOT installed;
+  this solver is the documented alternative.
+- **Circuit API:** `backend/app.py` `_route_circuits` —
+  `GET /api/v1/circuits/schema` (public),
+  `POST /api/v1/circuits/validate` (auth),
+  `POST /api/v1/circuits/simulate` (auth, owner-scoped
+  project; runs DC/transient/AC and stores the result as a
+  simulation job with solver circuit_dc / circuit_transient /
+  circuit_ac). Health stage is now 8.
+- **Electrical solvers:** 11 analytical solvers in
+  `backend/solvers.py` (ohm_law, series_parallel,
+  rc_time_constant, rlc_resonance, ac_power, transformer,
+  dc_motor, battery_config, motor_gearbox, solenoid,
+  wire_resistance), all in the registry and the Stage 6 job
+  API. `wire_resistance` reads the material's recorded
+  resistivity from Stage 4; a missing value is a named
+  error. `motor_gearbox` chains the DC motor equations with
+  the Stage 7 gear model.
+- **Electrical workspace:** `electrical.html` +
+  `assets/js/electrical.js` — canvas schematic editor
+  (palette, place, wire with elbow routing, drag, inspector,
+  BOM + CSV, save/load JSON, 4 demo circuits), DC/transient/
+  AC runs with canvas charts (time series, Bode magnitude
+  and phase), calculations tab (registry-driven forms for
+  the 11 solvers), motors & batteries tab (DC motor,
+  motor+gearbox, battery pack, transformer), jobs tab.
+- **Demo circuits:** `workspace/test-circuits/` — voltage
+  divider, RC step, RLC resonance, half-wave rectifier,
+  DC motor parameters, 4s2p battery pack.
+- **Tests:** `backend/test_stage8.py` 71/71. Stages 2–7
+  suites still green (health assertions accept stage 8).
+- **Limits, stated in the UI and docs:** conceptual designs
+  only — no FEA/CFD field solver, no distribution or
+  protection systems, BJT/MOSFET/op-amp models are
+  simplified (see docs/ELECTRICAL.md), nothing validated
+  for a real installation.

@@ -195,3 +195,27 @@ docs/*.md
 - Tests: `backend/test_stage7.py` **99/99**,
   `backend/test_stage7_math.js` **36/36**,
   `backend/test_stage7_kernel.mjs` **22/22**.
+
+## Stage 8 — Electrical Engineering Laboratory (19 Nov 2026)
+
+- **Real circuit simulator** (`backend/circuit.py`): Modified
+  Nodal Analysis — DC operating point (Newton-Raphson),
+  transient (backward Euler), AC sweep (small-signal).
+  Resistors, capacitors, inductors, sources, diodes, LEDs,
+  BJTs, MOSFETs, op-amps, switches, relays, ground.
+  ngspice/FEMM/Elmer are not installed on this machine, so
+  this is our own solver — documented, not hidden.
+- **Electrical workspace** (`electrical.html`): schematic
+  editor (place, wire, drag, edit), DC/transient/AC runs
+  with real charts, calculations, motors & batteries, BOM.
+- **11 analytical electrical solvers**: Ohm's law, series/
+  parallel, RC, RLC resonance, AC power, transformer,
+  DC motor, battery pack, motor+gearbox (Stage 7 link),
+  solenoid, wire resistance from real material data.
+- **6 demo circuits**: voltage divider, RC step, RLC
+  resonance, half-wave rectifier, DC motor, 4s2p battery.
+- **Honest limits:** conceptual designs only — simplified
+  device models, no field solver, no distribution or
+  protection systems. See `docs/ELECTRICAL.md` and
+  `docs/TEST_RESULTS_STAGE8.md`.
+- Tests: `backend/test_stage8.py` **71/71**.

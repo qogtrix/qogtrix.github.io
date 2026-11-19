@@ -324,3 +324,51 @@ actually built and checked. Anything labelled "Stage 2" is not done.
       designer
 - [ ] Nothing here is validated for manufacturing or real-world
       operation — conceptual designs only
+
+---
+
+# Stage 8 — Electrical Engineering Laboratory (19 Nov 2026)
+
+## Completed in Stage 8
+
+- [x] Circuit designer: place, wire, drag, edit, delete,
+      save/load JSON, demo circuits, BOM + CSV
+- [x] Circuit simulation: real MNA solver — DC, transient,
+      AC sweep, voltages/currents/power, frequency response
+- [x] Electrical calculations: Ohm's law, KCL/KVL (in the
+      solver itself), power, energy, R/C/L, impedance,
+      AC power, power factor, efficiency — formulas, units
+      and assumptions shown
+- [x] Motors and generators: DC motor design and
+      calculation; motor+gearbox integration with Stage 7;
+      AC/synchronous/BLDC/stepper/generator models are
+      parameter notes, not built
+- [x] Battery and energy systems: series/parallel packs,
+      capacity, voltage, runtime, energy
+- [x] Power systems: ideal transformer; distribution,
+      transmission, switchgear and protection are
+      architecture notes, not built
+- [x] Electromagnetics: analytical solenoid (inductance,
+      field, flux, energy); FEMM/Elmer checked not
+      installed — no field solver, recorded as not built
+- [x] Material integration: wire resistance from recorded
+      Stage 4 resistivity; missing values refused
+- [x] Mechanical integration: motor+gearbox solver chains
+      electrical input to mechanical output
+- [x] Documentation: schematic JSON, BOM, calculation
+      reports, simulation jobs, wiring list
+- [x] Testing: 6 demo circuits verified against analytical
+      references; analytical solvers cross-checked against
+      the MNA solver
+
+## Honest limits
+
+- [ ] No ngspice / FEMM / Elmer (not installed) — the lab
+      uses its own MNA solver and analytical formulas
+- [ ] BJT/MOSFET/op-amp models are simplified (see
+      docs/ELECTRICAL.md)
+- [ ] No distribution, transmission, switchgear or
+      protection systems
+- [ ] No AC/synchronous/BLDC/stepper motor models yet
+- [ ] Nothing here is validated for a real electrical
+      installation — conceptual designs only

@@ -1,0 +1,6 @@
+{
+  "name": "DC motor model",
+  "description": "Parameter set for the dc_motor solver (not a circuit): 12 V supply, 1.5 ohm armature, Kt = Ke = 0.05, 0.1 N·m load.",
+  "solver": "dc_motor",
+  "inputs": {"voltage_V": 12, "resistance_ohm": 1.5, "kt_Nm_per_A": 0.05, "ke_V_per_rad_s": 0.05, "load_torque_Nm": 0.1}
+}

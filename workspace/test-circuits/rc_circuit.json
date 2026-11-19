@@ -1,0 +1,8 @@
+{
+  "name": "RC step response",
+  "components": [
+    {"id": "V1", "type": "voltage_source", "nodes": ["in", "0"], "params": {"value": 5, "waveform": "step", "amplitude": 5}},
+    {"id": "R1", "type": "resistor", "nodes": ["in", "out"], "params": {"value": 1000, "rating_W": 0.25}},
+    {"id": "C1", "type": "capacitor", "nodes": ["out", "0"], "params": {"value": 1e-06}}
+  ]
+}

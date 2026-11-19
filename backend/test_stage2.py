@@ -61,7 +61,7 @@ def main():
 
     try:
         s, body = req(base, "GET", "/health")
-        check("health endpoint", s == 200 and body.get("stage") in (2, 3, 4, 5, 6, 7), f"HTTP {s}")
+        check("health endpoint", s == 200 and body.get("stage") in (2, 3, 4, 5, 6, 7, 8), f"HTTP {s}")
 
         # --- registration ---
         s, alice = req(base, "POST", "/api/v1/auth/register",

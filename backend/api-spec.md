@@ -185,3 +185,32 @@ each solver.
 
 `POST /api/v1/simulate/*` → 501 Not Implemented. `results` stays
 `null` until a real solver exists (Stage 3).
+
+## Circuits (Stage 8)
+
+- `GET /api/v1/circuits/schema` — public. The circuit JSON
+  schema: component types, terminal counts, notes.
+- `POST /api/v1/circuits/validate` — auth. Body
+  `{circuit}`; returns `{valid, errors}`.
+- `POST /api/v1/circuits/simulate` — auth, owner-scoped
+  project. Body `{project_id, circuit, analysis}` where
+  `analysis` is `{type: "dc"}` or `{type: "transient",
+  duration, steps, output_nodes?}` or `{type: "ac",
+  f_start, f_stop, points, output_node?}`. Runs the MNA
+  solver and stores the result as a simulation job with
+  solver `circuit_dc`, `circuit_transient` or `circuit_ac`
+  (201 on success, 200 with status `failed` on a solver
+  error). Components may use net names in `nodes`, or
+  terminal labels plus a `connections` list (resolved by
+  union-find); node `"0"` is ground.
+
+Stage 8 adds eleven electrical solvers to the same registry
+and job API (no new endpoints): `ohm_law`,
+`series_parallel`, `rc_time_constant`, `rlc_resonance`,
+`ac_power`, `transformer`, `dc_motor`, `battery_config`,
+`motor_gearbox`, `solenoid`, `wire_resistance`. The circuit
+solvers (`circuit_dc`, `circuit_transient`, `circuit_ac`)
+are in the registry too, but they only run through the
+circuit endpoint above — posting them to
+`/api/v1/simulations` records a failed job explaining that.
+See `docs/ELECTRICAL.md` for the solver's models and limits.

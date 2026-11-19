@@ -1,0 +1,8 @@
+{
+  "name": "Half-wave rectifier",
+  "components": [
+    {"id": "V1", "type": "voltage_source", "nodes": ["in", "0"], "params": {"value": 0, "waveform": "sine", "amplitude": 10, "frequency": 50}},
+    {"id": "D1", "type": "diode", "nodes": ["in", "out"], "params": {"is": 1e-14, "n": 1}},
+    {"id": "R1", "type": "resistor", "nodes": ["out", "0"], "params": {"value": 1000, "rating_W": 0.25}}
+  ]
+}

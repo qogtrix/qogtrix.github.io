@@ -127,6 +127,157 @@ SOLVER_REGISTRY = {
         "requires": [],
         "assumptions": ["No air resistance; constant gravity"],
     },
+    "circuit_dc": {
+        "label": "Circuit simulation — DC operating point (MNA)",
+        "method": "numerical",
+        "engine": "python-mna (Modified Nodal Analysis, own implementation)",
+        "status": "available",
+        "inputs": ["circuit", "analysis"],
+        "outputs": ["voltages", "branch_currents", "power"],
+        "requires": [],
+        "assumptions": [
+            "Modified Nodal Analysis with Newton-Raphson for diodes, BJTs and MOSFETs",
+            "BJT is a simplified Ebers-Moll model (active region); MOSFET is Level-1; op-amp is an ideal VCVS",
+            "Run through POST /api/v1/circuits/simulate, not the scalar solver endpoint",
+        ],
+    },
+    "circuit_transient": {
+        "label": "Circuit simulation — transient (backward Euler)",
+        "method": "numerical",
+        "engine": "python-mna (Modified Nodal Analysis, own implementation)",
+        "status": "available",
+        "inputs": ["circuit", "analysis"],
+        "outputs": ["t", "voltages", "branch_currents"],
+        "requires": [],
+        "assumptions": [
+            "Backward-Euler time stepping with companion models for capacitors and inductors",
+            "Capacitors start uncharged, inductors start with no current",
+            "Run through POST /api/v1/circuits/simulate, not the scalar solver endpoint",
+        ],
+    },
+    "circuit_ac": {
+        "label": "Circuit simulation — AC frequency sweep (small-signal)",
+        "method": "numerical",
+        "engine": "python-mna (Modified Nodal Analysis, own implementation)",
+        "status": "available",
+        "inputs": ["circuit", "analysis"],
+        "outputs": ["frequencies_hz", "magnitude_v", "phase_deg"],
+        "requires": [],
+        "assumptions": [
+            "Small-signal analysis: nonlinear devices are linearised at the DC operating point",
+            "Run through POST /api/v1/circuits/simulate, not the scalar solver endpoint",
+        ],
+    },
+    "ohm_law": {
+        "label": "Ohm's law (V = I x R)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["voltage_V", "current_A", "resistance_ohm"],
+        "outputs": ["voltage_V", "current_A", "resistance_ohm", "power_W"],
+        "requires": [],
+        "assumptions": ["Give exactly two of voltage, current, resistance; the third is solved", "Resistive, DC steady state"],
+    },
+    "series_parallel": {
+        "label": "Series / parallel equivalent (R, C or L)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["kind", "mode", "values"],
+        "outputs": ["equivalent"],
+        "requires": [],
+        "assumptions": ["Resistors and inductors add in series and reciprocate in parallel; capacitors are the other way round"],
+    },
+    "rc_time_constant": {
+        "label": "RC time constant and step response",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["resistance_ohm", "capacitance_F", "voltage_V"],
+        "outputs": ["tau_s", "cutoff_hz", "voltage_at_tau_V", "settle_5tau_s"],
+        "requires": [],
+        "assumptions": ["First-order RC, step input from 0 V, capacitor initially uncharged"],
+    },
+    "rlc_resonance": {
+        "label": "RLC series resonance",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["resistance_ohm", "inductance_H", "capacitance_F"],
+        "outputs": ["resonant_freq_hz", "angular_freq_rad_s", "quality_factor", "bandwidth_hz"],
+        "requires": [],
+        "assumptions": ["Series RLC, ideal components, resonance at minimum impedance"],
+    },
+    "ac_power": {
+        "label": "AC power (P, Q, S, power factor)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["voltage_rms_V", "current_rms_A", "power_factor"],
+        "outputs": ["apparent_power_VA", "real_power_W", "reactive_power_var", "phase_angle_deg"],
+        "requires": [],
+        "assumptions": ["Sinusoidal steady state, single phase, power factor is cos(phi)"],
+    },
+    "transformer": {
+        "label": "Ideal transformer",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["primary_voltage_V", "turns_primary", "turns_secondary", "efficiency", "load_power_W"],
+        "outputs": ["secondary_voltage_V", "turns_ratio", "secondary_current_A", "primary_current_A"],
+        "requires": [],
+        "assumptions": ["Ideal transformer (no losses in the core or windings) except the given efficiency applied to power transfer"],
+    },
+    "dc_motor": {
+        "label": "DC motor (steady state)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["voltage_V", "resistance_ohm", "kt_Nm_per_A", "ke_V_per_rad_s", "load_torque_Nm"],
+        "outputs": ["stall_current_A", "stall_torque_Nm", "no_load_speed_rpm", "current_A", "speed_rpm", "power_in_W", "power_out_W", "efficiency"],
+        "requires": [],
+        "assumptions": ["Steady state, constant field, armature resistance only (no iron or friction losses)", "Torque constant and back-EMF constant are numerically equal in SI but are given separately"],
+    },
+    "battery_config": {
+        "label": "Battery series / parallel configuration",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["cell_voltage_V", "cell_capacity_Ah", "series", "parallel", "load_current_A"],
+        "outputs": ["total_voltage_V", "total_capacity_Ah", "energy_Wh", "runtime_h"],
+        "requires": [],
+        "assumptions": ["Identical cells, no imbalance, capacity is independent of discharge rate (no Peukert effect)"],
+    },
+    "motor_gearbox": {
+        "label": "DC motor driving a gearbox (Stage 7 integration)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["voltage_V", "resistance_ohm", "kt_Nm_per_A", "ke_V_per_rad_s", "load_torque_Nm", "gear_ratio", "gear_efficiency"],
+        "outputs": ["motor_speed_rpm", "motor_torque_Nm", "output_speed_rpm", "output_torque_Nm", "power_in_W", "power_out_W", "efficiency"],
+        "requires": [],
+        "assumptions": ["Steady state DC motor (see dc_motor) driving an ideal gear pair with the given efficiency", "Load torque is the torque demanded at the gearbox output shaft"],
+    },
+    "solenoid": {
+        "label": "Solenoid / coil (inductance and field)",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["turns", "length_m", "area_m2", "mu_r", "current_A"],
+        "outputs": ["inductance_H", "field_T", "flux_Wb", "energy_J"],
+        "requires": [],
+        "assumptions": ["Long solenoid (length >> diameter), uniform field, relative permeability given by the user — no permeability is recorded in the material database"],
+    },
+    "wire_resistance": {
+        "label": "Wire / conductor resistance from material data",
+        "method": "analytical",
+        "engine": "python-analytical",
+        "status": "available",
+        "inputs": ["material_id", "length_m", "area_mm2", "current_A"],
+        "outputs": ["resistance_ohm", "resistivity_ohm_m", "voltage_drop_V", "power_loss_W"],
+        "requires": ["electrical_resistivity_ohm_m"],
+        "assumptions": ["Uniform conductor, resistivity at the recorded test conditions (temperature dependence is not modelled)"],
+    },
     "rigid_body": {
         "label": "Rigid-body dynamics (Rapier, in the browser)",
         "method": "numerical",
@@ -397,6 +548,10 @@ def run_solver(solver, inputs, material_props):
     if meta["status"] == "browser":
         raise ValueError("rigid_body runs in the browser workspace, "
                          "not on the backend")
+    if solver.startswith("circuit_"):
+        raise ValueError("circuit solvers run through "
+                         "POST /api/v1/circuits/simulate, not the scalar "
+                         "solver endpoint")
     # Material requirements.
     props = {}
     for key in meta["requires"]:
@@ -702,4 +857,162 @@ def run_solver(solver, inputs, material_props):
         P = T * w
         return {"angular_velocity_rad_s": w, "power_W": P,
                 "power_kW": P / 1000, "power_hp": P / 745.7}
+
+    if solver == "ohm_law":
+        given = [k for k in ("voltage_V", "current_A", "resistance_ohm")
+                 if inputs.get(k) is not None]
+        if len(given) != 2:
+            raise ValueError("ohm_law needs exactly two of voltage_V, "
+                             "current_A, resistance_ohm")
+        V = inputs.get("voltage_V")
+        I = inputs.get("current_A")
+        R = inputs.get("resistance_ohm")
+        if V is None:
+            V = I * R
+        elif I is None:
+            I = V / R
+        else:
+            R = V / I
+        return {"voltage_V": float(V), "current_A": float(I),
+                "resistance_ohm": float(R), "power_W": float(V * I)}
+    if solver == "series_parallel":
+        kind = str(inputs.get("kind", "resistor"))
+        mode = str(inputs.get("mode", "series"))
+        vals = inputs.get("values")
+        if kind not in ("resistor", "capacitor", "inductor"):
+            raise ValueError("kind must be resistor, capacitor or inductor")
+        if mode not in ("series", "parallel"):
+            raise ValueError("mode must be series or parallel")
+        if not isinstance(vals, list) or len(vals) < 2 or \
+                any(not isinstance(x, (int, float)) or x <= 0 for x in vals):
+            raise ValueError("values must be a list of at least two positive numbers")
+        if (kind == "capacitor") == (mode == "series"):
+            # capacitors in series (or R/L in parallel): reciprocals
+            eq = 1.0 / sum(1.0 / x for x in vals)
+        else:
+            eq = sum(vals)
+        return {"equivalent": eq, "kind": kind, "mode": mode}
+    if solver == "rc_time_constant":
+        R = _need_number(inputs, "resistance_ohm")
+        C = _need_number(inputs, "capacitance_F")
+        V = _need_number(inputs, "voltage_V", positive=False)
+        tau = R * C
+        return {"tau_s": tau, "cutoff_hz": 1.0 / (2 * math.pi * tau),
+                "voltage_at_tau_V": V * (1 - math.exp(-1)),
+                "settle_5tau_s": 5 * tau}
+    if solver == "rlc_resonance":
+        R = _need_number(inputs, "resistance_ohm")
+        L = _need_number(inputs, "inductance_H")
+        C = _need_number(inputs, "capacitance_F")
+        w0 = 1.0 / math.sqrt(L * C)
+        Q = (1.0 / R) * math.sqrt(L / C)
+        return {"resonant_freq_hz": w0 / (2 * math.pi),
+                "angular_freq_rad_s": w0, "quality_factor": Q,
+                "bandwidth_hz": w0 / (2 * math.pi * Q),
+                "damping": "underdamped" if Q > 0.5 else
+                           ("critically damped" if Q == 0.5 else "overdamped")}
+    if solver == "ac_power":
+        V = _need_number(inputs, "voltage_rms_V")
+        I = _need_number(inputs, "current_rms_A")
+        pf = _need_number(inputs, "power_factor", positive=False)
+        if not (0 < pf <= 1):
+            raise ValueError("power_factor must be in (0, 1]")
+        S = V * I
+        phi = math.acos(pf)
+        return {"apparent_power_VA": S, "real_power_W": S * pf,
+                "reactive_power_var": S * math.sin(phi),
+                "phase_angle_deg": math.degrees(phi)}
+    if solver == "transformer":
+        V1 = _need_number(inputs, "primary_voltage_V")
+        N1 = _need_number(inputs, "turns_primary")
+        N2 = _need_number(inputs, "turns_secondary")
+        eta = _need_number(inputs, "efficiency", positive=False)
+        P = _need_number(inputs, "load_power_W", positive=False)
+        if not (0 < eta <= 1):
+            raise ValueError("efficiency must be in (0, 1]")
+        V2 = V1 * N2 / N1
+        I2 = P / V2 if V2 else 0.0
+        I1 = P / (eta * V1) if V1 else 0.0
+        return {"secondary_voltage_V": V2, "turns_ratio": N2 / N1,
+                "secondary_current_A": I2, "primary_current_A": I1}
+    if solver == "dc_motor":
+        V = _need_number(inputs, "voltage_V")
+        Ra = _need_number(inputs, "resistance_ohm")
+        Kt = _need_number(inputs, "kt_Nm_per_A")
+        Ke = _need_number(inputs, "ke_V_per_rad_s")
+        Tl = _need_number(inputs, "load_torque_Nm", positive=False)
+        I_stall = V / Ra
+        T_stall = Kt * I_stall
+        w0 = V / Ke
+        I = Tl / Kt
+        if I > I_stall:
+            raise ValueError("load torque exceeds the stall torque "
+                             f"({T_stall:.3f} N·m) — the motor cannot turn this load")
+        w = (V - I * Ra) / Ke
+        pin = V * I
+        pout = Tl * w
+        return {"stall_current_A": I_stall, "stall_torque_Nm": T_stall,
+                "no_load_speed_rpm": w0 * 60 / (2 * math.pi),
+                "current_A": I, "speed_rpm": w * 60 / (2 * math.pi),
+                "power_in_W": pin, "power_out_W": pout,
+                "efficiency": (pout / pin) if pin > 0 else 0.0}
+    if solver == "battery_config":
+        Vc = _need_number(inputs, "cell_voltage_V")
+        Ah = _need_number(inputs, "cell_capacity_Ah")
+        s = inputs.get("series")
+        p = inputs.get("parallel")
+        if not isinstance(s, int) or not isinstance(p, int) or s < 1 or p < 1:
+            raise ValueError("series and parallel must be integers >= 1")
+        I = _need_number(inputs, "load_current_A", positive=False)
+        Vt, At = Vc * s, Ah * p
+        return {"total_voltage_V": Vt, "total_capacity_Ah": At,
+                "energy_Wh": Vt * At,
+                "runtime_h": (At / I) if I > 0 else None}
+    if solver == "motor_gearbox":
+        V = _need_number(inputs, "voltage_V")
+        Ra = _need_number(inputs, "resistance_ohm")
+        Kt = _need_number(inputs, "kt_Nm_per_A")
+        Ke = _need_number(inputs, "ke_V_per_rad_s")
+        Tl = _need_number(inputs, "load_torque_Nm", positive=False)
+        i = _need_number(inputs, "gear_ratio")
+        eta = _need_number(inputs, "gear_efficiency", positive=False)
+        if not (0 < eta <= 1):
+            raise ValueError("gear_efficiency must be in (0, 1]")
+        Tm = Tl / (i * eta)  # load torque reflected to the motor shaft
+        I = Tm / Kt
+        I_stall = V / Ra
+        if I > I_stall:
+            raise ValueError("reflected load torque exceeds the motor stall "
+                             f"torque ({Kt * I_stall:.3f} N·m) — the motor cannot turn this load")
+        wm = (V - I * Ra) / Ke
+        pin = V * I
+        pout = Tl * (wm / i)
+        return {"motor_speed_rpm": wm * 60 / (2 * math.pi),
+                "motor_torque_Nm": Tm,
+                "output_speed_rpm": wm / i * 60 / (2 * math.pi),
+                "output_torque_Nm": Tl,
+                "power_in_W": pin, "power_out_W": pout,
+                "efficiency": (pout / pin) if pin > 0 else 0.0,
+                "motor_current_A": I}
+    if solver == "solenoid":
+        N = _need_number(inputs, "turns")
+        l = _need_number(inputs, "length_m")
+        A = _need_number(inputs, "area_m2")
+        mu_r = _need_number(inputs, "mu_r")
+        I = _need_number(inputs, "current_A", positive=False)
+        mu0 = 4 * math.pi * 1e-7
+        mu = mu0 * mu_r
+        L = mu * N * N * A / l
+        B = mu * N * I / l
+        return {"inductance_H": L, "field_T": B, "flux_Wb": B * A,
+                "energy_J": 0.5 * L * I * I}
+    if solver == "wire_resistance":
+        length = _need_number(inputs, "length_m")
+        area_mm2 = _need_number(inputs, "area_mm2")
+        I = _need_number(inputs, "current_A", positive=False)
+        rho = props["electrical_resistivity_ohm_m"]
+        R = rho * length / (area_mm2 * 1e-6)
+        return {"resistance_ohm": R, "resistivity_ohm_m": rho,
+                "voltage_drop_V": I * R, "power_loss_W": I * I * R}
+    raise ValueError(f"no implementation for solver: {solver}")
     raise ValueError(f"solver {solver} has no analytical implementation")

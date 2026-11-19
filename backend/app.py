@@ -26,6 +26,7 @@ import auth as authmod
 import db as dbmod
 import model as modelmod
 import solvers as solversmod
+import circuit as circuitmod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -191,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 7,
+                return self._send(200, {"status": "ok", "stage": 8,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -220,6 +221,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"solvers": solversmod.SOLVER_REGISTRY})
             if path.startswith("/api/v1/simulations"):
                 return self._route_simulations(path, method, query)
+            if path.startswith("/api/v1/circuits"):
+                return self._route_circuits(path, method, query)
             if path.startswith("/api/v1/simulate/"):
                 return self._send(501, {"status": "not_implemented",
                                         "stage": 3,
@@ -898,6 +901,84 @@ class Handler(BaseHTTPRequestHandler):
         raise ApiError(404, "Not found")
 
     # -- project routes ------------------------------------------------
+
+    def _route_circuits(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # GET /api/v1/circuits/schema — public.
+        if len(parts) == 4 and parts[3] == "schema" and method == "GET":
+            return self._send(200, {"schema": circuitmod.CIRCUIT_SCHEMA})
+        user = self._current_user()
+        # POST /api/v1/circuits/validate — auth, no project needed.
+        if len(parts) == 4 and parts[3] == "validate" and method == "POST":
+            data = self._read_json()
+            circuit = data.get("circuit")
+            if not isinstance(circuit, dict):
+                raise ApiError(400, "circuit is required")
+            errors = circuitmod.validate_circuit(circuit)
+            return self._send(200, {"valid": not errors, "errors": errors})
+        # POST /api/v1/circuits/simulate — auth, owner-scoped project.
+        if len(parts) == 4 and parts[3] == "simulate" and method == "POST":
+            data = self._read_json()
+            pid = str(data.get("project_id", "")).strip()
+            if not pid:
+                raise ApiError(400, "project_id is required")
+            self._own_project(pid, user["id"])
+            circuit = data.get("circuit")
+            if not isinstance(circuit, dict):
+                raise ApiError(400, "circuit is required")
+            analysis = data.get("analysis") or {}
+            if not isinstance(analysis, dict):
+                raise ApiError(400, "analysis must be an object")
+            atype = str(analysis.get("type", "dc")).strip()
+            if atype not in ("dc", "transient", "ac"):
+                raise ApiError(400, "analysis.type must be dc, transient or ac")
+            solver = "circuit_" + atype
+            meta = solversmod.SOLVER_REGISTRY[solver]
+            inputs = {"circuit": circuit, "analysis": analysis}
+            sid = dbmod.new_id("sim")
+            try:
+                if atype == "dc":
+                    result = circuitmod.simulate_dc(circuit)
+                elif atype == "transient":
+                    result = circuitmod.simulate_transient(
+                        circuit,
+                        float(analysis.get("duration", 0.005)),
+                        int(analysis.get("steps", 200)),
+                        analysis.get("output_nodes"))
+                else:
+                    result = circuitmod.simulate_ac(
+                        circuit,
+                        float(analysis.get("f_start", 10)),
+                        float(analysis.get("f_stop", 100000)),
+                        int(analysis.get("points", 20)),
+                        analysis.get("output_node"))
+            except (ValueError, TypeError) as e:
+                self.conn.execute(
+                    "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                    " solver_version, status, inputs, results, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, pid, user["id"], solver, meta["engine"],
+                     "failed", json.dumps(inputs),
+                     json.dumps({"error": str(e)}), now_iso()))
+                self.conn.commit()
+                return self._send(200, {**self._sim_public(
+                    self._own_simulation(sid, user["id"])),
+                    "note": "Circuit simulation failed: " + str(e)})
+            self.conn.execute(
+                "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                " solver_version, status, inputs, results, created_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (sid, pid, user["id"], solver, meta["engine"],
+                 "completed", json.dumps(inputs),
+                 json.dumps({"method": meta["method"],
+                             "engine": meta["engine"],
+                             "assumptions": meta["assumptions"],
+                             "values": result}), now_iso()))
+            self.conn.commit()
+            return self._send(201, self._sim_public(
+                self._own_simulation(sid, user["id"])))
+        raise ApiError(404, "Not found")
+
     def _route_projects(self, path, method, query):
         user = self._current_user()
         parts = [p for p in path.split("/") if p]

@@ -1,0 +1,6 @@
+{
+  "name": "Battery pack 4s2p",
+  "description": "Parameter set for the battery_config solver (not a circuit): 3.7 V / 2.6 Ah Li-ion cells, 4 in series, 2 strings in parallel, 2 A load.",
+  "solver": "battery_config",
+  "inputs": {"cell_voltage_V": 3.7, "cell_capacity_Ah": 2.6, "series": 4, "parallel": 2, "load_current_A": 2}
+}
