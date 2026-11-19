@@ -108,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Headers",
                              "Authorization, Content-Type")
             self.send_header("Access-Control-Allow-Methods",
-                             "GET, POST, PATCH, DELETE, OPTIONS")
+                             "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 
     def _send(self, status: int, obj):
         body = json.dumps(obj).encode()

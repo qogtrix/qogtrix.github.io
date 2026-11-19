@@ -587,6 +587,12 @@ async function saveModel(manual) {
         baseVersion = (await api('GET', '/api/v1/projects/' + projectId + '/model', null, token)).model.version;
         await saveModel(false);
       }
+    } else if (!e.status) {
+      // No HTTP status: the request never reached the server at all —
+      // a network failure, or a blocked preflight (e.g. CORS). The
+      // model is still in this tab; nothing was lost.
+      status('Could not reach the server to save (network error or a blocked request). The hosted server sleeps when idle — wait a minute and try again. Your changes are still in this tab.', 'warn');
+      if (manual) alert('Could not reach the server to save. Your changes are still in this tab — try again in a minute.');
     } else {
       status('Save failed: ' + e.message, 'warn');
       if (manual) alert('Save failed: ' + e.message);

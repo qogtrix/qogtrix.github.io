@@ -356,7 +356,8 @@ $('add-joint').addEventListener('click', () => {
   setStatus($('joint-type').value + ' joint added between ' + (a.comp.name || a.comp.id) + ' and ' + (b.comp.name || b.comp.id) + '.');
 });
 $('save-results').addEventListener('click', async () => {
-  if (!window.__lastSimSummary) return;
+  if (!window.__lastSimSummary) { setStatus('Nothing to save yet — run the simulation first.', true); return; }
+  if (!projectId) { setStatus('Sign in and pick a project first — results are stored as a job on the project.', true); return; }
   try {
     const job = await api('/api/v1/simulations', { method: 'POST', body: JSON.stringify({ project_id: projectId, solver: 'rigid_body', inputs: { gravity_m_s2: parseFloat($('gravity').value || 9.81), duration_s: parseFloat($('duration').value || 5) } }) });
     const done = await api('/api/v1/simulations/' + job.id + '/results', { method: 'POST', body: JSON.stringify({ results: window.__lastSimSummary }) });

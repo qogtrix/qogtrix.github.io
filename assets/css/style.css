@@ -55,12 +55,18 @@ pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.9rem}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
-table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+.table-wrap table{min-width:640px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
 th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
 th{color:var(--muted);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;user-select:none}
 tbody tr{cursor:pointer} tbody tr:hover{background:var(--surface2)}
 td.num,th.num{text-align:right;font-family:var(--mono)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+/* Round 2 — a <select> in a flex toolbar sizes to its longest option
+   and, with min-width:auto, refused to shrink: the solver dropdown
+   (longest label ~440px) pushed the Mechanical calc page 51px wider
+   than a 390px viewport. Let it shrink to the toolbar. */
+.model-toolbar select,.toolbar select{min-width:0;max-width:100%}
 input,select,textarea{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font:inherit;font-size:.92rem}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 button{background:var(--accent);color:#04121f;border:0;border-radius:9px;padding:9px 15px;font:inherit;font-weight:700;cursor:pointer}
@@ -132,6 +138,12 @@ footer{padding:18px 22px;border-top:1px solid var(--border);color:var(--muted2);
 .model-status{font-size:.85rem;color:var(--muted)}
 .model-status.warn{color:#fbbf24}
 .model-layout{display:grid;grid-template-columns:250px 1fr 280px;gap:14px;align-items:start}
+/* Two-column variant used by the Mechanical / Simulation input+results
+   sections. It used to be an inline style, which beat the media query
+   below and forced a 300px column on phones. As a class it collapses. */
+.model-layout.cols-2{grid-template-columns:300px 1fr}
+.model-layout>*,.aero-layout>*,.robo-layout>*,.struct-layout>*,.elec-layout>*,.asst-layout>*{min-width:0}
+.slider-row>*{min-width:0}
 .model-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
 .model-panel h3{margin:14px 0 8px;font-size:.95rem}
 .model-panel h3:first-child{margin-top:0}
@@ -147,7 +159,7 @@ footer{padding:18px 22px;border-top:1px solid var(--border);color:var(--muted2);
 .field-row{display:flex;flex-direction:column;gap:4px;margin:8px 0}
 .field-row label{font-size:.82rem;color:var(--muted)}
 .field-row input,.field-row select,.field-row textarea{width:100%}
-@media (max-width:1100px){.model-layout{grid-template-columns:1fr}.model-viewer{order:-1}}
+@media (max-width:1100px){.model-layout{grid-template-columns:1fr}.model-layout.cols-2{grid-template-columns:1fr}.model-viewer{order:-1}}
 
 /* Stage 6 — simulation workspace */
 /* Wide lab content must scroll inside its own container, never push
@@ -157,6 +169,17 @@ footer{padding:18px 22px;border-top:1px solid var(--border);color:var(--muted2);
    getBoundingClientRect, so max-width scaling keeps them usable.) */
 #schematic,#crank-canvas,canvas.chart{max-width:100%;height:auto}
 #sim-results,#calc-results{overflow-x:auto}
+/* Round 2 — narrow screens: every lab result container scrolls inside
+   itself, never pushes the page sideways. (Tables keep their 640px
+   floor only inside .table-wrap; results/editor tables scroll as
+   blocks so their columns stay intact.) */
+#calc-result,#gear-results,#crank-solver-results,#bom-table,#alternatives,
+#analytical-results,#live-results,#sim-summary,#perf-results,#rocket-results,
+#traj-results,#polar-results,#report-out,#assist-out,#ik-results,#pid-results,
+#dd-results,#motor-results,#motor-gear-results,#battery-results,
+#transformer-results,#jobs-list,#fk-readout,#wire-list{overflow-x:auto}
+table.results,table.editor-table{display:block;overflow-x:auto}
+.kv td{overflow-wrap:anywhere}
 .tabs{display:flex;gap:8px;margin:14px 0;overflow-x:auto;scrollbar-width:thin}
 .tab{padding:8px 16px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:8px;cursor:pointer;font:inherit;white-space:nowrap;flex-shrink:0}
 .tab.active{background:#0e2a1e;color:var(--green);border-color:#14532d}

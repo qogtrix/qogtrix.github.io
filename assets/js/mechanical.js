@@ -33,6 +33,15 @@ function setStatus(msg, kind) {
 }
 
 let model = null, projectId = null, projectName = '';
+// Single source of truth for the project: the #project-select value,
+// read at call time. (Loading a demo used to null projectId, so every
+// calculation after it posted project_id: null and the server answered
+// 404 "Project not found".)
+function pid() {
+  const v = $('project-select') ? ($('project-select').value || null) : null;
+  projectId = v;
+  return v;
+}
 let materials = [], materialsById = {};
 let scene, camera, renderer, orbit, rootGroup = null, topLevel = [];
 let explodeFactor = 0;
@@ -148,12 +157,12 @@ $('explode').addEventListener('input', (e) => {
 });
 
 async function loadModel() {
-  if (!projectId) { setStatus('Choose a project first.', 'warn'); return; }
+  if (!pid()) { setStatus('Choose a project first.', 'warn'); return; }
   setStatus('Loading model…');
   try {
     const data = await api('GET', '/api/v1/projects/' + projectId + '/model');
     model = data.model;
-    setStatus('Model loaded: ' + model.components.length + ' components (version ' + data.version + ').');
+    setStatus('Model loaded: ' + model.components.length + ' components (version ' + data.model.version + ').');
     initSceneIfNeeded(); await buildViewer();
   } catch (e) { setStatus('Could not load the model: ' + e.message, 'warn'); }
 }
@@ -171,8 +180,10 @@ $('load-demo').addEventListener('click', async () => {
     const res = await fetch('workspace/test-models/mechanical/' + demo + '.json');
     if (!res.ok) throw new Error('Demo file not found (HTTP ' + res.status + ')');
     model = await res.json();
-    projectId = null;
-    setStatus('Demo loaded: ' + demo + ' (guest mode — sign in and save it to a project to keep it).');
+    // A demo is only a model preview: it must NOT change the selected
+    // project (the old code nulled projectId here, so every later
+    // calculation posted project_id: null and failed with 404).
+    setStatus('Demo loaded: ' + demo + ' (preview — your selected project is unchanged; calculations still save to it).');
     initSceneIfNeeded(); await buildViewer();
   } catch (e) { setStatus('Could not load the demo: ' + e.message, 'warn'); }
 });
@@ -241,7 +252,7 @@ const MECH_KINDS = {
   });
 })();
 async function addComponent(kind) {
-  if (!model || !projectId) { alert('Load a project model first (sign in, choose a project, Load model).'); return; }
+  if (!model || !pid()) { alert('Load a project model first (sign in, choose a project, Load model).'); return; }
   const def = MECH_KINDS[kind];
   const comp = {
     id: kind + '-' + Math.random().toString(36).slice(2, 8),
@@ -253,7 +264,7 @@ async function addComponent(kind) {
   try {
     const data = await api('POST', '/api/v1/projects/' + projectId + '/model/components', { component: comp });
     model = data.model;
-    setStatus(def.label + ' added (model version ' + data.version + ').');
+    setStatus(def.label + ' added (model version ' + data.model.version + ').');
     await buildViewer();
   } catch (e) { setStatus('Could not add the component: ' + e.message, 'warn'); }
 }
@@ -275,10 +286,11 @@ function renderGearSelects() {
 }
 $('run-gear').addEventListener('click', async () => {
   const out = $('gear-results');
+  if (!pid()) { out.innerHTML = '<p class="warn">Sign in and pick a project first — gear-train results are stored as a simulation job on the project.</p>'; return; }
   const gears = gearsInModel();
   const ga = gears.find((g) => g.id === $('gear-a').value);
   const gb = gears.find((g) => g.id === $('gear-b').value);
-  if (!ga || !gb) { out.innerHTML = '<p class="warn">Load a model with at least two gears, or run the gear train solver in Calculations with manual inputs.</p>'; return; }
+  if (!ga || !gb) { out.innerHTML = '<p class="warn">This model has no gears to calculate with — load a model with at least two gears, or use the Calculations tab with manual inputs.</p>'; return; }
   out.innerHTML = '<p class="muted">Calculating…</p>';
   try {
     const job = await api('POST', '/api/v1/simulations', {
@@ -352,6 +364,7 @@ $('crank-play').addEventListener('click', () => {
 $('crank-pause').addEventListener('click', () => { cancelAnimationFrame(crankAnim); crankAnim = null; });
 $('crank-run-solver').addEventListener('click', async () => {
   const out = $('crank-solver-results');
+  if (!pid()) { out.innerHTML = '<p class="warn">Sign in and pick a project first — the analysis is stored as a simulation job on the project.</p>'; return; }
   out.innerHTML = '<p class="muted">Running…</p>';
   try {
     const job = await api('POST', '/api/v1/simulations', {
@@ -430,6 +443,7 @@ $('solver-select').addEventListener('change', renderSolverForm);
 $('run-calc').addEventListener('click', async () => {
   const id = $('solver-select').value;
   const out = $('calc-results');
+  if (!pid()) { out.innerHTML = '<p class="warn">Sign in and pick a project first — calculations are stored as simulation jobs on the project.</p>'; return; }
   const inputs = {};
   (SOLVER_FIELDS[id] || []).forEach(([key, , type]) => {
     const el = $('in-' + key);

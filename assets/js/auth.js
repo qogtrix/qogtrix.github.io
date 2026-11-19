@@ -60,6 +60,12 @@
       var lo = document.getElementById('logout-link');
       if (lo) lo.addEventListener('click', function (e) { e.preventDefault(); logout(); });
     }
+    // The static "Sign in" nav link must not pretend the user is signed
+    // out while the footer says they are signed in (lab pages showed
+    // both at once). The footer already offers Sign out.
+    if (user()) {
+      document.querySelectorAll('.nav-link[href="auth.html"]').forEach(function (a) { a.style.display = 'none'; });
+    }
     // Login form
     var login = document.getElementById('login-form');
     if (login) login.addEventListener('submit', async function (e) {

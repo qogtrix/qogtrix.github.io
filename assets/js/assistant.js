@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
   return body;
 }
 
-const S = { convId: null, convs: [], projects: [], proposals: {} };
+const S = { convId: null, convs: [], projects: [], proposals: {}, pendingProjectId: null };
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -183,27 +183,33 @@ async function loadProjects() {
 }
 
 async function loadStatus() {
-  try {
-    const cfg = await api('/api/v1/assistant/config');
+  // The three panels are independent: fetch them together. They used
+  // to run one after another (and after two more sequential calls in
+  // init), so on a 0.1-CPU free tier they sat on "Loading…" for many
+  // seconds even with the backend warm.
+  const [cfg, u, t] = await Promise.all([
+    api('/api/v1/assistant/config').catch(() => null),
+    api('/api/v1/assistant/usage').catch(() => null),
+    api('/api/v1/assistant/tools').catch(() => null),
+  ]);
+  if (cfg) {
     $('provider-box').innerHTML =
       `<strong>${esc(cfg.label)}</strong><br>` +
       `Model: ${esc(cfg.model || '—')}<br>` +
       `External provider: ${cfg.provider === 'local' ? 'not configured (local engine)' : (cfg.configured ? 'configured' : 'key missing')}<br>` +
       `Rate limit: ${cfg.rate_limit_per_minute}/min, ${cfg.rate_limit_per_hour}/hour`;
-  } catch (e) {
+  } else {
     $('provider-box').textContent = 'Sign in to see the assistant status.';
   }
-  try {
-    const u = await api('/api/v1/assistant/usage');
+  if (u) {
     $('usage-box').innerHTML =
       `Requests: ${u.totals.requests}<br>` +
       `Tokens: ${u.totals.prompt_tokens + u.totals.completion_tokens}<br>` +
       `Estimated cost: $${Number(u.totals.cost_usd).toFixed(4)} (local engine: $0)`;
-  } catch (e) {
+  } else {
     $('usage-box').textContent = '—';
   }
-  try {
-    const t = await api('/api/v1/assistant/tools');
+  if (t) {
     const byLab = {};
     for (const tool of t.tools || []) {
       (byLab[tool.lab] = byLab[tool.lab] || []).push(tool.label);
@@ -211,7 +217,7 @@ async function loadStatus() {
     $('tools-box').innerHTML = Object.entries(byLab)
       .map(([lab, names]) => `<strong>${esc(lab)}</strong>: ${esc(names.join(', '))}`)
       .join('<br>');
-  } catch (e) {
+  } else {
     $('tools-box').textContent = '—';
   }
 }
@@ -222,9 +228,14 @@ async function sendMessage() {
   if (!text) return;
   if (!S.convId) {
     const created = await api('/api/v1/assistant/conversations', {
-      method: 'POST', body: JSON.stringify({ title: text.slice(0, 60) }),
+      method: 'POST',
+      // The project picked before any conversation existed is attached
+      // here — otherwise openConv() below resets the dropdown to
+      // "(no project attached)" and the choice is silently lost.
+      body: JSON.stringify({ title: text.slice(0, 60), project_id: S.pendingProjectId }),
     });
     S.convId = created.conversation.id;
+    S.pendingProjectId = null;
     await loadConvs();
   }
   box.value = '';
@@ -263,17 +274,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   $('new-chat').onclick = async () => {
     const created = await api('/api/v1/assistant/conversations', {
-      method: 'POST', body: JSON.stringify({}),
+      method: 'POST', body: JSON.stringify({ project_id: S.pendingProjectId }),
     });
     S.convId = created.conversation.id;
+    S.pendingProjectId = null;
     await loadConvs();
     await openConv(S.convId);
   };
   $('project-select').onchange = async (e) => {
-    if (!S.convId) return;
+    const pid = e.target.value || null;
+    if (!S.convId) { S.pendingProjectId = pid; return; } // no conversation yet — attach when one is created
     await api('/api/v1/assistant/conversations/' + encodeURIComponent(S.convId), {
       method: 'PATCH',
-      body: JSON.stringify({ project_id: e.target.value || null }),
+      body: JSON.stringify({ project_id: pid }),
     });
     await openConv(S.convId);
   };
@@ -300,8 +313,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('tools-box').textContent = 'Sign in to see what the assistant can do.';
     return;
   }
-  await loadProjects();
-  await loadConvs();
-  await loadStatus();
+  // Projects, conversations and status are independent: load them
+  // together instead of one after another (see loadStatus).
+  await Promise.all([loadProjects(), loadConvs(), loadStatus()]);
   if (S.convs.length) await openConv(S.convs[0].id);
 });
