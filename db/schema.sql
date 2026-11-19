@@ -1,9 +1,50 @@
--- AI Engineering Laboratory — Database schema (Stage 1, prepared only)
+-- AI Engineering Laboratory — Database schema, Stage 2
 -- Target: PostgreSQL in production, SQLite for local dev.
--- No database is running in Stage 1; Stage 1 data lives in data/*.json
--- and in browser localStorage. This schema is the contract Stage 2
--- implements. RULE: simulations.results stays NULL until a real solver
--- writes it. Never seed fake results.
+-- Portable tables first (both engines). Postgres-only Row Level
+-- Security policies are in the section after the marker below.
+--
+-- OWNERSHIP RULE (the core of Stage 2):
+--   * every project has owner_id NOT NULL REFERENCES users(id)
+--   * every API query for projects MUST filter owner_id = current user
+--   * a project belonging to another user must behave as if it does
+--     not exist (404, not 403) so user IDs cannot be enumerated
+--   * simulations.agent_runs also carry owner/user references
+-- RULE: simulations.results stays NULL until a real solver writes it.
+
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    last_used_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    key_prefix TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    scopes TEXT NOT NULL DEFAULT 'projects:read projects:write',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_used_at TEXT,
+    revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
 CREATE TABLE IF NOT EXISTS materials (
     id TEXT PRIMARY KEY,
@@ -31,35 +72,57 @@ CREATE TABLE IF NOT EXISTS components (
 
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    lab TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    payload JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    description TEXT NOT NULL DEFAULT '',
+    lab TEXT NOT NULL DEFAULT 'general'
+        CHECK (lab IN ('general','mechanical','electrical','structural',
+                       'aerospace','robotics','materials')),
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
+CREATE INDEX IF NOT EXISTS idx_projects_owner_lab ON projects(owner_id, lab);
 
 CREATE TABLE IF NOT EXISTS simulations (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     solver TEXT NOT NULL,
     solver_version TEXT,
     status TEXT NOT NULL DEFAULT 'queued'
         CHECK (status IN ('queued','running','completed','failed','not_implemented')),
-    inputs JSONB NOT NULL DEFAULT '{}'::jsonb,
-    results JSONB,  -- NULL until a real solver produces output
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    inputs TEXT NOT NULL DEFAULT '{}',
+    results TEXT,  -- NULL until a real solver produces output
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_simulations_owner ON simulations(owner_id);
 
 CREATE TABLE IF NOT EXISTS agent_runs (
     id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
     model TEXT,
     prompt_hash TEXT,
-    tools_used JSONB NOT NULL DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    tools_used TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_components_lab ON components(lab);
-CREATE INDEX IF NOT EXISTS idx_simulations_project ON simulations(project_id);
-CREATE INDEX IF NOT EXISTS idx_projects_lab ON projects(lab);
+-- === POSTGRES RLS (production only — do not run on SQLite) ===
+-- Enable on PostgreSQL after creating the tables above:
+--   ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+--   ALTER TABLE simulations ENABLE ROW LEVEL SECURITY;
+--   ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+--   ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+--   CREATE POLICY projects_owner_isolation ON projects
+--     USING (owner_id = current_setting('app.current_user_id', true))
+--     WITH CHECK (owner_id = current_setting('app.current_user_id', true));
+--   CREATE POLICY simulations_owner_isolation ON simulations
+--     USING (owner_id = current_setting('app.current_user_id', true))
+--     WITH CHECK (owner_id = current_setting('app.current_user_id', true));
+-- The backend sets app.current_user_id per connection (SET LOCAL)
+-- from the verified session. Backend checks remain the primary
+-- enforcement; RLS is defence-in-depth so even a buggy query or a
+-- direct database connection cannot read another user's rows.

@@ -149,3 +149,83 @@ README.md  .nojekyll
 - No user accounts, no server database, no paid API.
 - No "Run simulation" button that returns numbers.
 - No AI agent runtime.
+
+---
+
+# Stage 2 — User Accounts and Personal Workspaces (19 Nov 2026)
+
+## 10. What changed, and why the stack changed
+
+Stage 1 planned FastAPI. Stage 2 implements the backend in **Python
+3.12 standard library only** (`http.server`, `sqlite3`, `hashlib`,
+`hmac`) — no pip install needed. Reason: this machine has no
+FastAPI/uvicorn/PyJWT installed, and a zero-dependency backend runs
+anywhere with just `python3`. The API contract (`backend/api-spec.md`)
+is framework-neutral, so a FastAPI port later would not change the
+frontend. The hosted Stage 2 app (Muse fullstack artifact) uses its
+own built-in server + database and the same contract.
+
+**Important hosting fact:** GitHub Pages is static-only, so it
+cannot run this backend. The static site (`qogtrix.github.io`)
+therefore ships the Stage 2 *frontend* (Sign in, My Projects,
+Account Settings) with a clear "backend must be running" state when
+no backend is reachable, and the working authenticated app is the
+hosted fullstack version. The backend source in this repo is what
+you self-host (`cd backend && python3 app.py`).
+
+## 11. Authentication
+
+- Register / login / logout / profile (`/me`), change password.
+- Passwords: PBKDF2-HMAC-SHA256, 200,000 iterations, per-user salt.
+  Only hashes are stored.
+- Sessions: HMAC-signed tokens, 7-day expiry, session row in the
+  database. Logout deletes the row, so the token stops working
+  immediately. Sessions are checked on every request.
+- Login rate limit: 5 failed attempts per email per 15 min → 429.
+- Frontend stores only the token (localStorage) — never a password.
+
+## 12. Ownership and isolation
+
+- `projects.owner_id NOT NULL REFERENCES users(id)` (plus
+  `simulations.owner_id`, `agent_runs.user_id`).
+- Every project query filters `owner_id = current user`. Single
+  project access first fetches with that filter; a project owned
+  by someone else returns **404**, not 403, so user IDs cannot be
+  enumerated through the API.
+- Database level: foreign keys enforced on every SQLite connection;
+  Postgres RLS policies are defined in `db/schema.sql` (production
+  defence-in-depth, using `app.current_user_id`). Backend checks
+  remain the primary enforcement.
+- Tests prove isolation (see `docs/TEST_RESULTS_STAGE2.md`):
+  34/34 passed with two accounts (Alice / Bob).
+
+## 13. Personal workspaces
+
+- One workspace per user, reached from the sidebar: Dashboard,
+  My Projects, Engineering Laboratories, Recent Work, Account Settings.
+- My Projects: create (name, description, lab), search, lab filter,
+  open + edit + save progress (`payload` JSON), rename, duplicate,
+  delete (with confirmation). Recent Work shows the 5 most recently
+  updated projects.
+- Stage 1's browser-local projects (dashboard, localStorage) are
+  unchanged and separate — they are "this browser only", while
+  Stage 2 projects live on the server under an account.
+
+## 14. Muse integration (prepared)
+
+- Scoped API keys (`aielab_…`, hash stored, shown once, revocable)
+  bound to one user. The future agent uses the same project
+  endpoints with that key. See `docs/MUSE_INTEGRATION.md`.
+- No other user gets access to Karan's Muse session, credentials,
+  browser session, or projects through this mechanism.
+
+## 15. Stage 2 file map (additions)
+
+```
+auth.html  projects.html  settings.html
+assets/js/config.js  assets/js/auth.js  assets/js/projects.js
+backend/auth.py  backend/db.py  backend/app.py (real, was skeleton)
+backend/test_stage2.py  backend/.gitignore
+db/schema.sql (v2: users, sessions, api_keys, owner_id, RLS)
+docs/MUSE_INTEGRATION.md  docs/TEST_RESULTS_STAGE2.md
+```

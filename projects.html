@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Projects — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 1 · Foundation</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Hybrid approach · Open-source first · No paid APIs.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">My Projects</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 2</span>
+  </header>
+  <main class="content">
+
+    <h1>My Projects</h1>
+    <p>Your personal workspace. Only you can see, open, rename, duplicate or delete these projects.</p>
+    <div class="notice err" id="projects-error" style="display:none"></div>
+    <h2>Recent work</h2>
+    <div class="grid cols-2" id="recent-list"><p class="muted">Loading…</p></div>
+    <h2>Create a project</h2>
+    <div class="card">
+      <div class="notice err" id="create-error" style="display:none"></div>
+      <form id="create-project-form">
+        <div class="toolbar">
+          <input id="new-name" type="text" placeholder="Project name, e.g. Cantilever beam study" required style="flex:2;min-width:220px">
+          <select id="new-lab">
+            <option value="general">General</option><option value="mechanical">Mechanical</option><option value="electrical">Electrical</option>
+            <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials Science</option>
+          </select>
+        </div>
+        <textarea id="new-desc" rows="2" placeholder="Description (optional)" style="width:100%"></textarea>
+        <div class="btn-row"><button type="submit">Create project</button></div>
+      </form>
+    </div>
+    <h2>All projects</h2>
+    <div class="toolbar">
+      <input id="search-projects" type="search" placeholder="Search your projects…" style="flex:2;min-width:200px">
+      <select id="filter-lab-projects">
+        <option value="">All laboratories</option><option value="general">General</option><option value="mechanical">Mechanical</option><option value="electrical">Electrical</option>
+        <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials Science</option>
+      </select>
+    </div>
+    <div id="projects-list"><p class="muted">Loading your projects…</p></div>
+    <div class="notice info" id="projects-empty" style="display:none">No projects yet — create your first one above.</div>
+
+    <div class="card" id="project-editor" style="display:none;margin-top:18px">
+      <h3 id="editor-title">Editing project</h3>
+      <p><label class="small muted">Name</label><br><input id="edit-name" type="text" style="width:100%"></p>
+      <p><label class="small muted">Description</label><br><textarea id="edit-desc" rows="2" style="width:100%"></textarea></p>
+      <p><label class="small muted">Laboratory</label><br><select id="edit-lab">
+        <option value="general">General</option><option value="mechanical">Mechanical</option><option value="electrical">Electrical</option>
+        <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials Science</option>
+      </select></p>
+      <p><label class="small muted">Design data (JSON — saved with the project)</label><br><textarea id="edit-payload" rows="6" style="width:100%;font-family:monospace"></textarea></p>
+      <div class="btn-row"><button id="save-project">Save progress</button><button class="secondary" id="close-editor">Close</button></div>
+      <p class="small muted" id="save-status"></p>
+    </div>
+    <p class="small muted"><a href="index.html">← Back to dashboard</a></p>
+
+  </main>
+  <footer>AI Engineering Laboratory · Stage 2 — User Accounts &amp; Personal Workspaces</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/projects.js"></script>
+</body>
+</html>

@@ -72,3 +72,30 @@ uvicorn app:app --reload --port 8001
 | 3D canvas shows "WebGL is not available" | Browser/device has WebGL disabled. Try another browser. |
 | Page looks unstyled | `assets/css/style.css` path wrong after copying — keep the folder structure exactly as in this repo. |
 | GitHub Pages still shows the old placeholder | Pages rebuild takes ~1 min; hard-refresh (Ctrl+Shift+R). Check the repo actually received the push. |
+
+---
+
+## Stage 2 — run the backend (accounts + projects)
+
+The static site alone cannot do accounts — GitHub Pages has no server.
+Run the backend locally:
+
+```bash
+cd backend
+python3 app.py          # http://127.0.0.1:8001
+# in another terminal, serve the site:
+cd .. && python3 -m http.server 8000
+# open http://localhost:8000/auth.html — register, then use My Projects
+```
+
+No pip install is needed (stdlib only). Set `AIELAB_SECRET` in
+production. The database file is `backend/aielab.db` (SQLite,
+git-ignored). Run the tests:
+
+```bash
+cd backend && python3 test_stage2.py   # expect 34/34 passed
+```
+
+The hosted Stage 2 app (Muse fullstack artifact) has its own
+built-in backend + database — sign up there directly, no local
+backend needed.

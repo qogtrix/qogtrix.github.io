@@ -69,3 +69,22 @@ backend/app.py  backend/requirements.txt  backend/api-spec.md
 db/schema.sql
 docs/*.md
 ```
+
+## Stage 2 — User Accounts and Personal Workspaces (19 Nov 2026)
+
+- Register / sign in / sign out, profile + password change.
+  Passwords hashed with PBKDF2; sessions are HMAC-signed tokens
+  (7 days, revocable).
+- One independent workspace per user: My Projects, Recent Work,
+  Account Settings. Create, search, open, rename, duplicate,
+  delete (with confirmation), save progress.
+- Ownership enforced on every API call — another user's project
+  returns 404. Tested with two accounts: **34/34 tests passed**
+  (`backend/test_stage2.py`, see `docs/TEST_RESULTS_STAGE2.md`).
+- Muse integration prep: scoped API keys (`aielab_…`) in Account
+  Settings — see `docs/MUSE_INTEGRATION.md`.
+- Run the backend: `cd backend && python3 app.py` (stdlib only,
+  no install). GitHub Pages cannot run a backend, so the static
+  site shows the Stage 2 frontend with a clear "backend must be
+  running" state; the working authenticated app is the hosted
+  fullstack version.

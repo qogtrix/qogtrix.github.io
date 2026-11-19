@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account Settings — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 1 · Foundation</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Hybrid approach · Open-source first · No paid APIs.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">Account Settings</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 2</span>
+  </header>
+  <main class="content">
+
+    <h1>Account Settings</h1>
+    <p>Manage your profile, password, and Muse agent access. Nothing here is shared with other users.</p>
+    <div class="notice err" id="settings-error" style="display:none"></div>
+    <div class="notice ok" id="settings-ok" style="display:none"></div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Profile</h3>
+        <p class="small muted" id="profile-info">Sign in to see your profile.</p>
+        <p><input id="settings-name" type="text" placeholder="Your name" style="width:100%"></p>
+        <button id="save-profile">Save name</button>
+        <h3 style="margin-top:20px">Change password</h3>
+        <p><input id="current-password" type="password" placeholder="Current password" style="width:100%"></p>
+        <p><input id="new-password" type="password" placeholder="New password (at least 8 characters)" style="width:100%"></p>
+        <button id="change-password">Change password</button>
+      </div>
+      <div class="card">
+        <h3>Muse agent access</h3>
+        <p class="small">For the future Muse agent: create a scoped API key that lets <b>your</b> agent access <b>your</b> workspace only. The key is shown once — copy it immediately. Revoke it any time here. Other users never see your keys, and a key cannot reach another user's projects.</p>
+        <p><input id="key-name" type="text" placeholder="Key name, e.g. Muse agent" style="width:100%"></p>
+        <button id="create-key">Create API key</button>
+        <div id="new-key" class="notice ok" style="display:none;margin-top:10px"></div>
+        <div id="key-list" style="margin-top:12px"><p class="muted">Loading keys…</p></div>
+        <h3 style="margin-top:20px">Backend connection</h3>
+        <p><input id="api-base" type="text" style="width:100%"></p>
+        <button class="secondary" id="save-api-base">Save backend URL</button>
+        <p class="small muted">Default: http://127.0.0.1:8001 (local backend). The hosted Stage 2 app does not need this.</p>
+      </div>
+    </div>
+    <div class="btn-row"><button class="danger" data-logout>Sign out</button></div>
+    <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+      var A = window.AIELAB_AUTH; if (!A.requireAuth()) return;
+      document.getElementById('api-base').value = A.apiBase();
+      try {
+        var me = await A.api('GET', '/api/v1/auth/me');
+        document.getElementById('profile-info').textContent = me.user.name + ' · ' + me.user.email + ' · joined ' + (me.user.created_at || '').slice(0, 10);
+        document.getElementById('settings-name').value = me.user.name;
+      } catch (e) { A.showError(document.getElementById('settings-error'), e); }
+      async function loadKeys() {
+        try { var r = await A.api('GET', '/api/v1/auth/api-keys');
+          document.getElementById('key-list').innerHTML = r.api_keys.length ? r.api_keys.map(function (k) {
+            return '<div style="border-top:1px solid var(--border);padding:8px 0"><b>' + k.name + '</b> <span class="pill">' + k.key_prefix + '…</span> ' + (k.revoked_at ? '<span class="status-bad">revoked</span>' : '<button class="danger" data-revoke="' + k.id + '">Revoke</button>') + '<div class="small muted">Created ' + (k.created_at || '').slice(0, 10) + (k.last_used_at ? ' · last used ' + k.last_used_at.slice(0, 10) : ' · never used') + '</div></div>';
+          }).join('') : '<p class="muted">No API keys yet.</p>';
+          document.querySelectorAll('[data-revoke]').forEach(function (b) { b.addEventListener('click', async function () { await A.api('DELETE', '/api/v1/auth/api-keys/' + b.getAttribute('data-revoke')); loadKeys(); }); });
+        } catch (e) { document.getElementById('key-list').innerHTML = '<p class="muted">Could not load keys: ' + e.message + '</p>'; }
+      }
+      loadKeys();
+      document.getElementById('save-profile').addEventListener('click', async function () {
+        try { var r = await A.api('PATCH', '/api/v1/auth/me', { name: document.getElementById('settings-name').value.trim() }); A.setUser(r.user);
+          var ok = document.getElementById('settings-ok'); ok.style.display = 'block'; ok.textContent = 'Profile saved.'; } catch (e) { A.showError(document.getElementById('settings-error'), e); }
+      });
+      document.getElementById('change-password').addEventListener('click', async function () {
+        try { await A.api('POST', '/api/v1/auth/change-password', { current_password: document.getElementById('current-password').value, new_password: document.getElementById('new-password').value });
+          var ok = document.getElementById('settings-ok'); ok.style.display = 'block'; ok.textContent = 'Password changed. Other sessions were signed out.'; } catch (e) { A.showError(document.getElementById('settings-error'), e); }
+      });
+      document.getElementById('create-key').addEventListener('click', async function () {
+        try { var r = await A.api('POST', '/api/v1/auth/api-keys', { name: document.getElementById('key-name').value.trim() || 'Muse agent' });
+          var nk = document.getElementById('new-key'); nk.style.display = 'block'; nk.innerHTML = 'Copy this key now — it will not be shown again:<br><code>' + r.key + '</code>'; loadKeys(); } catch (e) { A.showError(document.getElementById('settings-error'), e); }
+      });
+      document.getElementById('save-api-base').addEventListener('click', function () {
+        localStorage.setItem('aielab.api_base', document.getElementById('api-base').value.trim()); location.reload();
+      });
+    });
+    </script>
+
+  </main>
+  <footer>AI Engineering Laboratory · Stage 2 — User Accounts &amp; Personal Workspaces</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+</body>
+</html>

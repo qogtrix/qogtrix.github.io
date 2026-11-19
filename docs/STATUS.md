@@ -65,3 +65,44 @@ actually built and checked. Anything labelled "Stage 2" is not done.
   Verify against a datasheet before any design use.
 - 3D presets are conceptual geometry previews, not engineering models
   and not simulation results.
+
+---
+
+# Stage 2 — User Accounts and Personal Workspaces (19 Nov 2026)
+
+## Completed in Stage 2
+
+- [x] Registration + login + logout + profile + change password, with
+      proper error handling (400/401/409/429) and loading/empty/error states
+- [x] Persistent sessions (7-day HMAC-signed tokens, revocable on logout)
+- [x] Secure password handling: PBKDF2-HMAC-SHA256, 200k iterations,
+      per-user salt; only hashes stored
+- [x] Personal workspaces: Dashboard, My Projects, Recent Work (5 latest),
+      Laboratories, Account Settings — one workspace per user
+- [x] Project management: create (name/description/lab), search, lab
+      filter, open + continue, rename, duplicate, delete with confirmation,
+      save progress (payload JSON) — all server-side, owner-scoped
+- [x] Ownership isolation: owner_id on every project, backend checks on
+      every endpoint, other users' projects return 404; Postgres RLS
+      policies defined in db/schema.sql
+- [x] Muse integration prep: scoped API keys (aielab_…), shown once,
+      hash stored, revocable, owner-bound — see docs/MUSE_INTEGRATION.md
+- [x] Frontend: auth.html, projects.html, settings.html + auth.js /
+      projects.js / config.js, in the existing dark theme, responsive
+- [x] Backend implemented for real (stdlib only, SQLite): backend/app.py,
+      auth.py, db.py — no pip install needed
+- [x] Tests: 34/34 passed with two accounts (Alice/Bob) — see
+      docs/TEST_RESULTS_STAGE2.md; plus a live curl check as Karan
+- [x] Docs updated: ARCHITECTURE.md (Stage 2), api-spec.md, STATUS.md,
+      MUSE_INTEGRATION.md, TEST_RESULTS_STAGE2.md, RUN_DEPLOY.md
+
+## Incomplete / explicitly NOT in Stage 2
+
+- [ ] Simulation solvers (still Stage 3)
+- [ ] AI agent runtime connected via API key (contract + keys only)
+- [ ] Email verification / password reset by email
+- [ ] Live Postgres deployment with RLS executed (policies defined,
+      SQLite tested; backend checks are the tested layer)
+- [ ] GitHub Pages cannot run the backend — the static site shows the
+      Stage 2 frontend with a "backend must be running" state; the
+      working authenticated app is the hosted fullstack version

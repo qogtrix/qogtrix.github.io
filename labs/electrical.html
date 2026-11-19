@@ -24,7 +24,11 @@
   <a class="nav-link" href="aerospace.html"><span class="ic">✈</span> Aerospace</a>
   <a class="nav-link" href="robotics.html"><span class="ic">🤖</span> Robotics</a>
   <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Science</a>
-  <div class="sidebar-foot">Hybrid approach · Open-source first · No paid APIs in Stage 1.</div>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="../projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="../auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="../settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Hybrid approach · Open-source first · No paid APIs in Stage 1.</div>
 </nav>
 <div class="main">
   <header class="topbar">
@@ -89,7 +93,9 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   window.THREE = THREE; window.OrbitControls = OrbitControls;
 </script>
+<script src="../assets/js/config.js"></script>
 <script src="../assets/js/app.js"></script>
+<script src="../assets/js/auth.js"></script>
 <script src="../assets/js/workspace3d.js"></script>
 <script src="../assets/js/materials.js"></script>
 </body>

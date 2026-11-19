@@ -1,34 +1,47 @@
-# API Spec — Stage 1 (contract for Stage 2)
+# API Spec — Stage 2 (implemented, tested)
 
-Base: `/api/v1` (not live in Stage 1; see `app.py` — only `/health` works).
+Base: `/api/v1`. Backend: `backend/app.py` (stdlib, SQLite).
+Auth: `Authorization: Bearer <session token>` or
+`Authorization: Bearer aielab_<api key>`.
 
-## Health (real in Stage 1)
+## Health (public)
 
-`GET /health` → `{"status":"ok","stage":1,"solver_available":false}`
+`GET /health` → `{"status":"ok","stage":2,"solver_available":false}`
 
-## Simulations (Stage 2 — return 501 in Stage 1)
+## Auth
 
-All simulation endpoints follow the same pattern:
+| Method & path | Body | Success | Errors |
+|---|---|---|---|
+| `POST /api/v1/auth/register` | `{email, password>=8, name}` | 201 `{user, token}` | 400 validation, 409 email exists |
+| `POST /api/v1/auth/login` | `{email, password}` | 200 `{user, token}` | 401 wrong credentials, 429 too many failures |
+| `POST /api/v1/auth/logout` | — (auth) | 200 `{ok:true}` — session revoked | 401 |
+| `GET /api/v1/auth/me` | — (auth) | 200 `{user}` | 401 |
+| `PATCH /api/v1/auth/me` | `{name}` | 200 `{user}` | 400, 401 |
+| `POST /api/v1/auth/change-password` | `{current_password, new_password>=8}` | 200 — other sessions revoked | 400, 401 |
+| `POST /api/v1/auth/api-keys` | `{name}` | 201 `{id, name, key_prefix, key}` — key shown **once** | 401 |
+| `GET /api/v1/auth/api-keys` | — (auth) | 200 `{api_keys:[...]}` (hashes never returned) | 401 |
+| `DELETE /api/v1/auth/api-keys/{id}` | — (auth) | 200 — key revoked | 401, 404 |
 
-- `POST /api/v1/simulate/{beam|circuit|frame|...}`
-- Request: JSON with `project_id`, `inputs` (solver-specific, defined
-  when the solver is chosen), `material_id` where relevant.
-- Response while queued: `202 {"simulation_id": "...", "status": "queued"}`
-- Poll: `GET /api/v1/simulations/{id}` →
-  `{"id","status":"queued|running|completed|failed","solver",
-  "solver_version","results": null | {...}}`
-- **Rule:** `results` is `null` until a real solver writes it.
-  No endpoint may return a hardcoded result.
+## Projects (auth required, always owner-scoped)
 
-## Materials / Components / Projects (Stage 2)
+| Method & path | Notes |
+|---|---|
+| `GET /api/v1/projects?q=&lab=` | Only the caller's projects, newest first. `lab` must be a known lab. |
+| `POST /api/v1/projects` | `{name 2–120, description, lab, payload{}}` → 201 |
+| `GET /api/v1/projects/{id}` | 404 if the project is not the caller's (no existence leak) |
+| `PATCH /api/v1/projects/{id}` | Rename / edit description / lab / save `payload` progress |
+| `POST /api/v1/projects/{id}/duplicate` | Copy with ` (copy)` suffix, new id, same owner |
+| `DELETE /api/v1/projects/{id}` | Deletes only the caller's project |
 
-- `GET /api/v1/materials` — list, filter by `category`
-- `GET /api/v1/materials/{id}`
-- `GET /api/v1/components?lab=mechanical`
-- `GET /api/v1/projects`, `POST /api/v1/projects`,
-  `GET /api/v1/projects/{id}`, `DELETE /api/v1/projects/{id}`
+All project errors: 401 unauthenticated, 404 not yours / not found,
+400 validation.
 
-In Stage 1 these are served from `data/*.json` in the browser and
-from `localStorage` for projects — the API mirrors that shape so the
-frontend can switch to the server in Stage 2 without changing its
-data model.
+## Public data (read-only)
+
+`GET /api/v1/materials`, `GET /api/v1/components` — served from
+`data/*.json`.
+
+## Simulations (not in Stage 2)
+
+`POST /api/v1/simulate/*` → 501 Not Implemented. `results` stays
+`null` until a real solver exists (Stage 3).

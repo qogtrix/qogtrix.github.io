@@ -1,6 +1,6 @@
-# Backend skeleton — install only when Stage 2 backend work starts.
-# No solver library is listed yet; solver choice is a Stage 2 decision.
-fastapi
-uvicorn[standard]
-pydantic
-sqlalchemy
+# Backend — Stage 2: intentionally no dependencies.
+# Python 3.12 standard library only (http.server, sqlite3, hashlib,
+# hmac, secrets). No pip install is needed to run or test it.
+# A FastAPI port remains possible later — the API contract in
+# api-spec.md is framework-neutral. No solver library is listed yet;
+# solver choice is a Stage 3 decision.
