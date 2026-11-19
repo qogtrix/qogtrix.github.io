@@ -291,3 +291,42 @@ Stage 10 adds 19 scalar solvers to the same registry and job API
 solvers (`aero_*`, `robot_*`) are in the registry too, but they only
 run through the analyze endpoints above — posting them to
 `/api/v1/simulations` records a failed job explaining that.
+
+## AI Engineering Assistant (Stage 11)
+
+- `GET /api/v1/assistant/config` — auth. Provider status:
+  `{provider, label, model, configured, api_key_set,
+  rate_limit_per_minute, rate_limit_per_hour}`. The API key
+  itself is never returned.
+- `GET /api/v1/assistant/tools` — auth. The tool registry:
+  name, label, lab and parameters for each tool.
+- `GET /api/v1/assistant/usage` — auth. Per-user totals
+  (requests, prompt/completion tokens, cost in USD) and the
+  last 50 usage rows.
+- `GET /api/v1/assistant/conversations` — auth. The caller's
+  conversations, newest first.
+- `POST /api/v1/assistant/conversations` — auth. Body
+  `{title?, project_id?}`; a project_id is verified against
+  ownership. Returns 201 with the conversation.
+- `GET /api/v1/assistant/conversations/{id}` — auth, owner
+  only. The conversation with its messages (up to 200) and
+  proposals.
+- `PATCH /api/v1/assistant/conversations/{id}` — auth, owner
+  only. Body `{title?, project_id?}`; `project_id: null`
+  detaches the project.
+- `DELETE /api/v1/assistant/conversations/{id}` — auth, owner
+  only. Deletes the conversation and cascades to its messages
+  and proposals.
+- `GET /api/v1/assistant/conversations/{id}/messages` — auth,
+  owner only. The message history.
+- `POST /api/v1/assistant/conversations/{id}/messages` — auth,
+  owner only. Body `{content}` (max 4000 characters). Runs the
+  assistant pipeline (rate limit → intent → tool execution →
+  reply) and returns 201 with the assistant message, including
+  `tool_calls` and `provenance`. A 429 is returned when the
+  per-user rate limit is hit.
+- `POST /api/v1/assistant/conversations/{id}/proposals/{pid}` —
+  auth, owner only. Body `{decision: "approve" | "deny"}`.
+  Approving applies the change to the owner's project
+  (structure section or aircraft field) and bumps its version;
+  denying leaves it untouched. A decided proposal returns 409.

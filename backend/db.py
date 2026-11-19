@@ -212,6 +212,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "visibility" not in _columns(conn, "projects"):
         conn.execute("ALTER TABLE projects ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'")
         conn.execute("UPDATE projects SET visibility='private' WHERE visibility IS NULL OR visibility=''")
+    # Stage 11: the assistant tables are CREATE TABLE IF NOT EXISTS
+    # in schema.sql, so existing databases get them from init_db's
+    # executescript — nothing to migrate here.
     # Stage 4: the flat Stage 1 materials table (no 'grade' column)
     # is replaced by the normalized materials + material_properties
     # tables. Drop and recreate so the schema is the single source

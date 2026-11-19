@@ -30,6 +30,7 @@ import circuit as circuitmod
 import structure as structuremod
 import aerospace as aeromod
 import robotics as robotmod
+import assistant as assistmod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -63,6 +64,12 @@ class ApiError(Exception):
         super().__init__(message)
         self.status = status
         self.message = message
+
+
+def ctx_project_id(conv):
+    """Project id attached to a conversation (or None)."""
+    return conv["project_id"] if isinstance(conv, dict) else conv["project_id"]
+
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -195,7 +202,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 10,
+                return self._send(200, {"status": "ok", "stage": 11,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -238,6 +245,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_aerospace(path, method, query)
             if path.startswith("/api/v1/robotics"):
                 return self._route_robotics(path, method, query)
+            if path.startswith("/api/v1/assistant"):
+                return self._route_assistant(path, method, query)
             if path.startswith("/api/v1/simulate/"):
                 return self._send(501, {"status": "not_implemented",
                                         "stage": 3,
@@ -1455,6 +1464,436 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, TypeError, KeyError) as e:
                 return self._store_job(pid, user["id"], solver, inputs, None, error=e)
             return self._store_job(pid, user["id"], solver, inputs, result)
+        raise ApiError(404, "Not found")
+
+    # -- AI Engineering Assistant (Stage 11) ---------------------------
+    def _asst_conv(self, cid, user_id):
+        """Fetch a conversation only if the caller owns it (404 otherwise)."""
+        row = self.conn.execute(
+            "SELECT * FROM assistant_conversations WHERE id=? AND user_id=?",
+            (cid, user_id)).fetchone()
+        if not row:
+            raise ApiError(404, "Conversation not found")
+        return row
+
+    def _asst_project_ctx(self, conv, user_id):
+        """(project row, payload) for the conversation's attached project,
+        owner-verified on every call. (None, None) when none is attached."""
+        pid = conv["project_id"]
+        if not pid:
+            return None, None
+        row = self._own_project(pid, user_id)
+        return row, json.loads(row["payload"] or "{}")
+
+    def _asst_record_usage(self, user_id, conv_id, provider, model,
+                           prompt_tokens, completion_tokens, status, ms):
+        self.conn.execute(
+            "INSERT INTO assistant_usage (id, user_id, conversation_id, "
+            "provider, model, prompt_tokens, completion_tokens, cost_usd, "
+            "status, duration_ms) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (dbmod.new_id("use"), user_id, conv_id, provider, model,
+             int(prompt_tokens), int(completion_tokens),
+             assistmod.cost_usd(provider, prompt_tokens, completion_tokens),
+             status, int(ms)))
+        self.conn.commit()
+
+    def _asst_store_message(self, conv_id, user_id, role, content,
+                            tool_calls=None, provenance=None):
+        mid = dbmod.new_id("msg")
+        self.conn.execute(
+            "INSERT INTO assistant_messages (id, conversation_id, user_id, "
+            "role, content, tool_calls, provenance) VALUES (?,?,?,?,?,?,?)",
+            (mid, conv_id, user_id, role, content,
+             json.dumps(tool_calls) if tool_calls is not None else None,
+             provenance))
+        self.conn.execute(
+            "UPDATE assistant_conversations SET updated_at=datetime('now') "
+            "WHERE id=?", (conv_id,))
+        self.conn.commit()
+        return mid
+
+    def _asst_msg_out(self, row):
+        return {"id": row["id"], "role": row["role"], "content": row["content"],
+                "tool_calls": json.loads(row["tool_calls"]) if row["tool_calls"] else [],
+                "provenance": row["provenance"],
+                "created_at": row["created_at"]}
+
+    def _asst_handle_message(self, conv, user, content):
+        """The assistant's reply pipeline. Returns the assistant message
+        dict. Every number in the reply comes from a real solver or the
+        materials database, or is labelled as an estimate/guidance."""
+        import time as _time
+        t0 = _time.time()
+        content = (content or "").strip()
+        if not content:
+            raise ApiError(400, "Message must not be empty")
+        if len(content) > 4000:
+            raise ApiError(400, "Message is too long (4000 characters maximum)")
+        limit = assistmod.check_rate_limit(user["id"])
+        if limit:
+            self._asst_record_usage(user["id"], conv["id"], "local",
+                                    "local-engine", 0, 0, "rate_limited",
+                                    int((_time.time() - t0) * 1000))
+            raise ApiError(429, limit)
+        cfg = assistmod.get_provider_config()
+        self._asst_store_message(conv["id"], user["id"], "user", content)
+        project, payload = self._asst_project_ctx(conv, user["id"])
+        ctx = {"conn": self.conn, "user_id": user["id"],
+               "project": dict(project) if project else None,
+               "project_payload": payload}
+        pending = json.loads(conv["pending_json"]) if conv["pending_json"] else None
+        reply = None
+        tool_calls = []
+        provenance = "general guidance"
+        provider_used = "local"
+        provider_status = "ok"
+        prompt_tokens = assistmod.estimate_tokens(content)
+        completion_tokens = 0
+
+        def _ask_missing(tool_def, inputs, missing):
+            asked = "\n".join(
+                f"- {m['label']}" + (f" ({m['unit']})" if m.get("unit") else "")
+                for m in missing)
+            sugg = assistmod.SUGGESTED_DEFAULTS.get(tool_def["name"], {})
+            sugg_txt = ""
+            if sugg:
+                sugg_txt = (" If that is fine, reply 'yes' — otherwise give me "
+                            "your own values. Suggested: " +
+                            ", ".join(f"{k} = {v}" for k, v in sugg.items()) + ".")
+            return (f"To run **{tool_def['label']}** I still need:\n{asked}\n"
+                    f"Give me those values and I will run it — I will not "
+                    f"guess them.{sugg_txt}")
+
+        # 1. Resume a pending clarification, when the reply answers it.
+        resumed = False
+        if pending:
+            tool_def = next((x for x in assistmod.TOOL_DEFS
+                             if x["name"] == pending["tool"]), None)
+            low = content.lower()
+            confirmed = any(w in low for w in
+                            ("yes", "ok", "okay", "sure", "go ahead", "use those",
+                             "use that", "fine", "do it"))
+            if tool_def is not None:
+                # Extract only for the params that are still missing —
+                # re-extracting all of them would let a follow-up number
+                # overwrite a value the user already gave.
+                missing_keys = {m["key"] for m in pending["missing"]}
+                missing_specs = [s for s in tool_def["params"]
+                                 if s["key"] in missing_keys]
+                new_inputs, still_missing = assistmod._extract_params(
+                    content, missing_specs)
+                merged = dict(pending.get("inputs") or {})
+                for k, v in new_inputs.items():
+                    if v is not None:
+                        merged[k] = v
+                if confirmed:
+                    for k, v in assistmod.SUGGESTED_DEFAULTS.get(
+                            tool_def["name"], {}).items():
+                        merged.setdefault(k, v)
+                    still_missing = [m for m in pending["missing"]
+                                     if merged.get(m["key"]) is None]
+                else:
+                    still_missing = [m for m in pending["missing"]
+                                     if merged.get(m["key"]) is None]
+                if not still_missing:
+                    resumed = True
+                    pending = None
+                    inputs = merged
+                    try:
+                        result = assistmod.execute_tool(ctx, tool_def, inputs, content)
+                        reply, tool_calls, provenance = self._asst_tool_reply(
+                            conv, user, tool_def, result)
+                    except assistmod.ToolInputError as e:
+                        reply = str(e) or "I could not run that with the values given."
+                        tool_calls = [{"tool": tool_def["name"], "status": "failed",
+                                       "error": reply}]
+                    except (ValueError, TypeError, KeyError) as e:
+                        reply = f"The {tool_def['label']} calculation could not run: {e}"
+                        tool_calls = [{"tool": tool_def["name"], "status": "failed",
+                                       "error": str(e)}]
+                elif confirmed or new_inputs:
+                    pending = {"tool": tool_def["name"], "inputs": merged,
+                               "missing": still_missing}
+                    reply = _ask_missing(tool_def, merged, still_missing)
+                    resumed = True
+        # 2. Fresh request (an unrelated message abandons the old
+        #    pending clarification instead of answering it twice).
+        if not resumed and reply is None:
+            pending = None
+            tool_def, _score = assistmod.select_tool(content)
+            if tool_def is not None:
+                inputs, missing = assistmod._extract_params(content, tool_def["params"])
+                if missing:
+                    pending = {"tool": tool_def["name"], "inputs": inputs,
+                               "missing": missing}
+                    reply = _ask_missing(tool_def, inputs, missing)
+                else:
+                    try:
+                        result = assistmod.execute_tool(ctx, tool_def, inputs, content)
+                        reply, tool_calls, provenance = self._asst_tool_reply(
+                            conv, user, tool_def, result)
+                    except assistmod.ToolInputError as e:
+                        reply = str(e) or "I could not run that with the values given."
+                        tool_calls = [{"tool": tool_def["name"], "status": "failed",
+                                       "error": reply}]
+                    except (ValueError, TypeError, KeyError) as e:
+                        reply = f"The {tool_def['label']} calculation could not run: {e}"
+                        tool_calls = [{"tool": tool_def["name"], "status": "failed",
+                                       "error": str(e)}]
+            else:
+                explanation = assistmod.explain_topic(content)
+                if explanation is not None:
+                    reply = explanation
+                elif cfg["provider"] != "local":
+                    # External provider: free-text explanation ONLY.
+                    # It never selects tools and never supplies numbers.
+                    # A named provider is always attempted, so a missing
+                    # key or an outage is reported honestly instead of
+                    # silently falling back.
+                    provider_used = cfg["provider"]
+                    try:
+                        reply = assistmod.provider_explain(
+                            content, system="You are a concise engineering "
+                            "assistant. Explain the concept in plain language. "
+                            "Do not invent numbers, material properties, test "
+                            "results or standards.")
+                        completion_tokens = assistmod.estimate_tokens(reply)
+                    except assistmod.ProviderError as e:
+                        provider_status = "provider_error"
+                        reply = ("My external AI provider is unavailable right "
+                                 f"now ({e}). Here is what I can do without it: "
+                                 + assistmod.KNOWLEDGE["help"])
+                else:
+                    reply = ("I can help with engineering calculations, material "
+                             "lookups, and your projects — but I do not have an "
+                             "answer for that question. Try one of these:\n"
+                             "- 'gear train 20 and 40 teeth, 1000 rpm, 10 Nm'\n"
+                             "- 'voltage divider 10 V, R1 1k, R2 1k'\n"
+                             "- 'column buckling 3 m, 100x100 mm square'\n"
+                             "- 'properties of steel S355'\n"
+                             "- 'what is torque?'")
+        # 3. Persist the pending state and the assistant message.
+        self.conn.execute(
+            "UPDATE assistant_conversations SET pending_json=? WHERE id=?",
+            (json.dumps(pending) if pending else None, conv["id"]))
+        self.conn.commit()
+        mid = self._asst_store_message(conv["id"], user["id"], "assistant",
+                                       reply, tool_calls, provenance)
+        completion_tokens = completion_tokens or assistmod.estimate_tokens(reply)
+        self._asst_record_usage(user["id"], conv["id"], provider_used,
+                                cfg["model"] if provider_used != "local" else "local-engine",
+                                prompt_tokens, completion_tokens, provider_status,
+                                int((_time.time() - t0) * 1000))
+        row = self.conn.execute(
+            "SELECT * FROM assistant_messages WHERE id=?", (mid,)).fetchone()
+        return self._asst_msg_out(row)
+
+    def _asst_tool_reply(self, conv, user, tool_def, result):
+        """Turn a tool result into a reply. A proposal is stored for
+        approval, never applied here."""
+        if tool_def["name"] == "project_propose":
+            proposal = result.get("proposal")
+            if proposal is None:
+                return (result.get("unsupported") or
+                        "I could not turn that into a concrete change.",
+                        [{"tool": tool_def["name"], "status": "failed",
+                          "error": "unsupported change"}], "general guidance")
+            pid = dbmod.new_id("prop")
+            change_doc = dict(proposal["change"])
+            if proposal.get("element_id"):
+                change_doc["element_id"] = proposal["element_id"]
+            self.conn.execute(
+                "INSERT INTO assistant_proposals (id, conversation_id, user_id, "
+                "project_id, target, change_json, summary, status) "
+                "VALUES (?,?,?,?,?,?,?,'pending')",
+                (pid, conv["id"], user["id"], ctx_project_id(conv),
+                 proposal["target"], json.dumps(change_doc),
+                 proposal["summary"]))
+            self.conn.commit()
+            reply = (f"Proposed change (not applied yet):\n"
+                     f"**{proposal['summary']}**\n\n"
+                     f"Reply with the proposal id `{pid}` and approve it from "
+                     f"the chat, or use the Approve button. Nothing changes "
+                     f"until you approve it.")
+            return reply, [{"tool": tool_def["name"], "status": "proposed",
+                            "proposal_id": pid,
+                            "summary": proposal["summary"]}], "proposal"
+        reply = assistmod.format_result(tool_def, result)
+        return reply, [{"tool": tool_def["name"], "status": "completed",
+                        "provenance": result.get("provenance"),
+                        "source": result.get("source")}], result.get("provenance")
+
+    def _asst_apply_proposal(self, proposal, user):
+        """Apply an approved proposal to the owner's project. Only the
+        two supported change types exist; anything else is refused."""
+        row = self._own_project(proposal["project_id"], user["id"])
+        payload = json.loads(row["payload"] or "{}")
+        change = json.loads(proposal["change_json"])
+        if proposal["target"] == "structure":
+            _payload, structure = self._structure_of(row)
+            elements = structure.get("elements") or []
+            target = next((e for e in elements if isinstance(e, dict)
+                           and e.get("id") == change.get("element_id")), None)
+            if target is None:
+                raise ApiError(400, "The structure element no longer exists")
+            target["section"] = change["section"]
+            structure["version"] = int(structure.get("version") or 1) + 1
+            self._save_structure(proposal["project_id"], user["id"], _payload, structure)
+        elif proposal["target"] == "aerospace":
+            _payload, design = self._aerospace_of(row)
+            for k, v in change.items():
+                design[k] = v
+            design["version"] = int(design.get("version") or 1) + 1
+            self._save_aerospace(proposal["project_id"], user["id"], _payload, design)
+        else:
+            raise ApiError(400, f"Unsupported proposal target: {proposal['target']}")
+        self.conn.execute(
+            "UPDATE assistant_proposals SET status='applied', "
+            "decided_at=datetime('now') WHERE id=?", (proposal["id"],))
+        self.conn.commit()
+
+    def _route_assistant(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # GET /api/v1/assistant/config — provider status (never the key).
+        if len(parts) == 4 and parts[3] == "config" and method == "GET":
+            user = self._current_user()
+            cfg = assistmod.get_provider_config()
+            return self._send(200, {"provider": cfg["provider"],
+                                    "label": cfg["label"],
+                                    "model": cfg["model"],
+                                    "configured": cfg["configured"],
+                                    "api_key_set": cfg["api_key_set"],
+                                    "rate_limit_per_minute": assistmod.RATE_LIMIT_PER_MINUTE,
+                                    "rate_limit_per_hour": assistmod.RATE_LIMIT_PER_HOUR})
+        # GET /api/v1/assistant/tools — the tool registry.
+        if len(parts) == 4 and parts[3] == "tools" and method == "GET":
+            self._current_user()
+            return self._send(200, {"tools": [assistmod.tool_summary(t)
+                                              for t in assistmod.TOOL_DEFS]})
+        # GET /api/v1/assistant/usage — per-user usage and costs.
+        if len(parts) == 4 and parts[3] == "usage" and method == "GET":
+            user = self._current_user()
+            rows = self.conn.execute(
+                "SELECT * FROM assistant_usage WHERE user_id=? "
+                "ORDER BY created_at DESC LIMIT 50", (user["id"],)).fetchall()
+            totals = self.conn.execute(
+                "SELECT COUNT(*) n, COALESCE(SUM(prompt_tokens),0) pt, "
+                "COALESCE(SUM(completion_tokens),0) ct, "
+                "COALESCE(SUM(cost_usd),0) cost FROM assistant_usage "
+                "WHERE user_id=?", (user["id"],)).fetchone()
+            return self._send(200, {
+                "totals": {"requests": totals["n"], "prompt_tokens": totals["pt"],
+                           "completion_tokens": totals["ct"],
+                           "cost_usd": round(totals["cost"], 6)},
+                "usage": [dict(r) for r in rows]})
+        # GET/POST /api/v1/assistant/conversations
+        if len(parts) == 4 and parts[3] == "conversations":
+            user = self._current_user()
+            if method == "GET":
+                rows = self.conn.execute(
+                    "SELECT * FROM assistant_conversations WHERE user_id=? "
+                    "ORDER BY updated_at DESC", (user["id"],)).fetchall()
+                return self._send(200, {"conversations": [dict(r) for r in rows]})
+            if method == "POST":
+                data = self._read_json()
+                title = str(data.get("title") or "New conversation").strip()[:120]
+                pid = data.get("project_id")
+                if pid:
+                    self._own_project(str(pid), user["id"])
+                cid = dbmod.new_id("conv")
+                self.conn.execute(
+                    "INSERT INTO assistant_conversations (id, user_id, title, project_id) "
+                    "VALUES (?,?,?,?)", (cid, user["id"], title, pid or None))
+                self.conn.commit()
+                row = self.conn.execute(
+                    "SELECT * FROM assistant_conversations WHERE id=?", (cid,)).fetchone()
+                return self._send(201, {"conversation": dict(row)})
+            raise ApiError(404, "Not found")
+        # /api/v1/assistant/conversations/<id> and below
+        if len(parts) >= 5 and parts[3] == "conversations":
+            cid = parts[4]
+            user = self._current_user()
+            conv = self._asst_conv(cid, user["id"])
+            if len(parts) == 5 and method == "GET":
+                msgs = self.conn.execute(
+                    "SELECT * FROM assistant_messages WHERE conversation_id=? "
+                    "AND user_id=? ORDER BY created_at ASC LIMIT 200",
+                    (cid, user["id"])).fetchall()
+                props = self.conn.execute(
+                    "SELECT * FROM assistant_proposals WHERE conversation_id=? "
+                    "AND user_id=? ORDER BY created_at DESC",
+                    (cid, user["id"])).fetchall()
+                out = dict(conv)
+                out["messages"] = [self._asst_msg_out(m) for m in msgs]
+                out["proposals"] = [dict(p) for p in props]
+                return self._send(200, {"conversation": out})
+            if len(parts) == 5 and method == "PATCH":
+                data = self._read_json()
+                if "title" in data:
+                    title = str(data["title"] or "").strip()[:120]
+                    if not title:
+                        raise ApiError(400, "title must not be empty")
+                    self.conn.execute(
+                        "UPDATE assistant_conversations SET title=?, "
+                        "updated_at=datetime('now') WHERE id=?", (title, cid))
+                if "project_id" in data:
+                    pid = data["project_id"]
+                    if pid:
+                        self._own_project(str(pid), user["id"])
+                    self.conn.execute(
+                        "UPDATE assistant_conversations SET project_id=?, "
+                        "updated_at=datetime('now') WHERE id=?",
+                        (pid or None, cid))
+                self.conn.commit()
+                row = self.conn.execute(
+                    "SELECT * FROM assistant_conversations WHERE id=?", (cid,)).fetchone()
+                return self._send(200, {"conversation": dict(row)})
+            if len(parts) == 5 and method == "DELETE":
+                self.conn.execute(
+                    "DELETE FROM assistant_conversations WHERE id=?", (cid,))
+                self.conn.commit()
+                return self._send(200, {"deleted": True})
+            if len(parts) == 6 and parts[5] == "messages":
+                if method == "GET":
+                    msgs = self.conn.execute(
+                        "SELECT * FROM assistant_messages WHERE conversation_id=? "
+                        "AND user_id=? ORDER BY created_at ASC LIMIT 200",
+                        (cid, user["id"])).fetchall()
+                    return self._send(200, {"messages": [self._asst_msg_out(m) for m in msgs]})
+                if method == "POST":
+                    data = self._read_json()
+                    msg = self._asst_handle_message(conv, user, data.get("content"))
+                    return self._send(201, {"message": msg})
+                raise ApiError(404, "Not found")
+            if len(parts) == 7 and parts[5] == "proposals" and method == "POST":
+                pid = parts[6]
+                prop = self.conn.execute(
+                    "SELECT * FROM assistant_proposals WHERE id=? AND user_id=?",
+                    (pid, user["id"])).fetchone()
+                if not prop or prop["conversation_id"] != cid:
+                    raise ApiError(404, "Proposal not found")
+                if prop["status"] != "pending":
+                    raise ApiError(409, f"Proposal is already {prop['status']}")
+                data = self._read_json()
+                decision = str(data.get("decision", "")).strip().lower()
+                if decision not in ("approve", "deny"):
+                    raise ApiError(400, "decision must be approve or deny")
+                if decision == "deny":
+                    self.conn.execute(
+                        "UPDATE assistant_proposals SET status='denied', "
+                        "decided_at=datetime('now') WHERE id=?", (pid,))
+                    self.conn.commit()
+                    self._asst_store_message(
+                        cid, user["id"], "assistant",
+                        f"Proposal declined — no change was made: {prop['summary']}.",
+                        None, "general guidance")
+                    return self._send(200, {"proposal": "denied"})
+                self._asst_apply_proposal(prop, user)
+                self._asst_store_message(
+                    cid, user["id"], "assistant",
+                    f"Approved and applied: {prop['summary']}.",
+                    None, "verified calculation")
+                return self._send(200, {"proposal": "applied"})
         raise ApiError(404, "Not found")
 
     def _route_projects(self, path, method, query):

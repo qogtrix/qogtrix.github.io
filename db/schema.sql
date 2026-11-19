@@ -160,6 +160,63 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs(user_id);
 
+
+-- Stage 11 — AI Engineering Assistant (same database, no second store).
+-- Every row carries user_id and every API query filters by it, so one
+-- user's conversations, proposals and usage can never leak to another.
+-- Projects are referenced, never copied: the assistant reads the
+-- owner's project payload through the same ownership checks as the
+-- rest of the API.
+CREATE TABLE IF NOT EXISTS assistant_conversations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL DEFAULT 'New conversation',
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    pending_json TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_asst_conv_user ON assistant_conversations(user_id);
+CREATE TABLE IF NOT EXISTS assistant_messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    tool_calls TEXT,
+    provenance TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_asst_msg_conv ON assistant_messages(conversation_id);
+CREATE TABLE IF NOT EXISTS assistant_proposals (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    target TEXT NOT NULL,
+    change_json TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'denied', 'applied')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_asst_prop_user ON assistant_proposals(user_id);
+CREATE TABLE IF NOT EXISTS assistant_usage (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    conversation_id TEXT,
+    provider TEXT NOT NULL,
+    model TEXT,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_asst_usage_user ON assistant_usage(user_id);
+
 -- === POSTGRES RLS (production only — do not run on SQLite) ===
 -- Enable on PostgreSQL after creating the tables above:
 --   ALTER TABLE projects ENABLE ROW LEVEL SECURITY;

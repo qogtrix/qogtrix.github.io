@@ -303,3 +303,28 @@ volume the API returns as null (booleans, imported meshes).
   single-joint-PID simplifications. No XFOIL, AVL, OpenVSP,
   PyBullet, ROS or MoveIt is installed. Say so whenever a
   result is reported.
+
+## AI Engineering Assistant (Stage 11) — what it is and is not
+
+- **The lab's assistant is not Muse.** It is a separate,
+  per-user service inside the laboratory with its own accounts.
+  It has no access to Muse's session, browser session,
+  credentials or private context, and Muse has no access to
+  other users' assistant conversations through this platform.
+  Do not present it as a second Muse.
+- **It does not think in general.** Its local engine matches
+  requests against a registry of 27 tools and asks when it
+  cannot. When a user asks something outside the registry,
+  say what it can do and offer the closest tool — do not
+  improvise an answer with invented numbers.
+- **Every number it reports must come from a tool result.**
+  If a reply has no tool call, it must contain no engineering
+  number. Check the `provenance` field before quoting a
+  result back to a user.
+- **Proposals are never applied by the assistant.** Only the
+  user approving them (through the decide endpoint) applies a
+  change, and only to a project they own.
+- **Usage is the billing record.** If a user asks what the
+  assistant cost, read `GET /api/v1/assistant/usage` — do not
+  estimate from memory. The local engine is $0; external
+  costs use the configured per-1k-token rates.

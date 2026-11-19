@@ -636,3 +636,46 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   flight dynamics; spar/link checks are single cantilever
   beams; nothing flight-certified or validated for a real
   robot.
+
+# Stage 11 — AI Engineering Assistant (19 Nov 2026)
+
+## 28. What changed
+
+- **Assistant engine:** `backend/assistant.py` — provider layer
+  (local engine by default; OpenAI-compatible / Anthropic /
+  Gemini / custom endpoints via env, key never exposed), a
+  unit-aware intent parser (SI conversion + per-parameter unit
+  conversion, area units, "1k" shorthand), a registry of 27
+  tools, executors that call the existing solvers/modules, a
+  reply formatter with provenance labels, and a small general
+  knowledge base for explanations.
+- **Database:** four tables in the same database (schema v4):
+  `assistant_conversations` (with `pending_json` for
+  multi-turn clarifications), `assistant_messages` (with
+  `tool_calls` JSON and `provenance`), `assistant_proposals`
+  (pending/approved/denied/applied), `assistant_usage`
+  (provider, tokens, cost, status, duration). Every row carries
+  `user_id`; every query filters by it.
+- **API:** `backend/app.py` `_route_assistant` — config, tools,
+  usage, conversation CRUD, message send, proposal decide.
+  The send pipeline: rate limit → store user message → resume
+  a pending clarification or select a tool → extract and
+  validate params (ask when missing) → execute through the
+  real engines → store the assistant message with provenance →
+  record usage. Proposals are stored, never applied, until the
+  user approves; applying re-verifies ownership and uses the
+  existing `_save_structure` / `_save_aerospace` paths.
+  Health stage is now 11.
+- **Frontend:** `assistant.html` + `assets/js/assistant.js` —
+  conversation sidebar, project attach, chat with provenance
+  badges and tool-call cards, proposal Approve/Deny buttons,
+  example prompts, provider status and usage panels. Nav link
+  added to all 15 root pages.
+- **Tests:** `backend/test_stage11.py` 45/45, covering all 12
+  required categories. Stages 2–10 suites still green (health
+  assertions accept stage 11).
+- **Limits, stated in the UI and docs:** no LLM is hosted or
+  trained; the local engine is a deterministic parser and says
+  so when it cannot understand a request. No external provider
+  is configured by default. Proposals cover two change types
+  only. Rate limits are in-memory. Token counts are estimates.

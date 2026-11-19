@@ -279,3 +279,34 @@ docs/*.md
   real robot. See `docs/AEROSPACE_ROBOTICS.md` and
   `docs/TEST_RESULTS_STAGE10.md`.
 - Tests: `backend/test_stage10.py` **140/140**.
+
+## Stage 11 — AI Engineering Assistant (19 Nov 2026)
+
+- **A lightweight per-user AI assistant** (`assistant.html`):
+  chat with the laboratory's real engines — ask in plain
+  language, get a verified calculation, a solved circuit, a
+  material lookup, or an explanation, with the provenance of
+  every result labelled.
+- **27 tools** across materials, mechanical, electrical,
+  structural, aerospace, robotics and projects — each a thin
+  wrapper around an existing solver. Nothing is duplicated,
+  and no large model is trained or hosted.
+- **Unit-aware understanding** ("gear train 20 and 40 teeth,
+  1000 rpm, 10 Nm", "voltage divider 10 V, R1 1k, R2 1k"):
+  missing values are asked for, never invented, and a solver
+  refusal is reported honestly.
+- **Project assistance with approval:** attach one of your
+  projects, ask the assistant to inspect it or propose a
+  change — the change is applied only after you approve it.
+- **Isolation and cost control:** every conversation, message,
+  proposal and usage row belongs to one user (owner-verified
+  on the backend); rate limits per user; usage and estimated
+  cost tracked per user (local engine: $0). External AI
+  providers are supported through server-side configuration
+  only — no key is configured by default.
+- **Honest limits:** the local engine is a deterministic
+  intent parser, not a general AI; proposals cover two change
+  types only. See `docs/ASSISTANT.md` and
+  `docs/TEST_RESULTS_STAGE11.md`.
+- Tests: `backend/test_stage11.py` **45/45** (all 12 required
+  categories).

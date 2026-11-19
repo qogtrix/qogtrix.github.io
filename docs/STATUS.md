@@ -450,3 +450,45 @@ actually built and checked. Anything labelled "Stage 2" is not done.
       airframe or arm assembly analysis
 - [ ] Nothing here is flight-certified or validated for a real
       robot
+
+# Stage 11 — AI Engineering Assistant (19 Nov 2026)
+
+## Completed in Stage 11
+
+- [x] AI assistant: chat UI, per-user conversations (create /
+      rename / delete / continue), project attach, history
+- [x] 27 tools across materials, mechanical, electrical,
+      structural, aerospace, robotics and projects — all
+      executing the existing engines, none duplicated
+- [x] Unit-aware intent parsing with clarification questions
+      (missing values are asked for, never invented)
+- [x] Provenance labels on every reply (verified calculation /
+      simulation result / database value / estimate / guidance /
+      proposal) with assumptions listed
+- [x] Project proposals with explicit user approval (verified:
+      unchanged before approval, applied after, untouched on deny)
+- [x] Per-user isolation at the backend and database level
+      (owner-verified on every call; other users' data is 404)
+- [x] Provider abstraction: local engine by default; external
+      APIs via server-side env config, key never exposed,
+      graceful fallback on outage, usage and cost tracking
+- [x] Rate limits (30/min, 200/hour per user), message cap,
+      prompt-injection defenses (structured args only;
+      provider prose can never trigger a tool)
+- [x] Usage and cost tracking per user (local engine $0)
+- [x] Testing: 45 new tests covering all 12 required
+      categories; all earlier suites green (630 Python tests)
+
+## Honest limits
+
+- [ ] No large language model is hosted or trained — the local
+      engine is a deterministic parser; unusual phrasings are
+      not understood and are answered honestly, not guessed
+- [ ] No external provider is configured by default (no API key
+      exists for this project); topics outside the built-in
+      knowledge base get a short capabilities reply until one
+      is set server-side
+- [ ] Proposals cover two change types only (structure section,
+      aircraft cruise speed/mass)
+- [ ] Rate limits are in-memory (per backend process)
+- [ ] Token counts are estimates (characters / 4)
