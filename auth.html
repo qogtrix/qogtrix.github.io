@@ -14,6 +14,7 @@
   <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
   <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
   <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
   <div class="nav-label">Laboratories</div>
   <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
   <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
@@ -43,7 +44,7 @@
         <h3>Sign in</h3>
         <div class="notice err" id="login-error" style="display:none"></div>
         <form id="login-form">
-          <p><input id="login-email" type="email" placeholder="Email" required style="width:100%"></p>
+          <p><input id="login-email" type="text" placeholder="Email or username" required style="width:100%"></p>
           <p><input id="login-password" type="password" placeholder="Password" required style="width:100%"></p>
           <button type="submit">Sign in</button>
         </form>
@@ -53,6 +54,7 @@
         <div class="notice err" id="register-error" style="display:none"></div>
         <form id="register-form">
           <p><input id="register-name" type="text" placeholder="Your name" required style="width:100%"></p>
+          <p><input id="register-username" type="text" placeholder="Username (3–30 chars, letters, numbers, _)" required minlength="3" maxlength="30" style="width:100%"></p>
           <p><input id="register-email" type="email" placeholder="Email" required style="width:100%"></p>
           <p><input id="register-password" type="password" placeholder="Password (at least 8 characters)" required minlength="8" style="width:100%"></p>
           <button type="submit">Create account</button>

@@ -33,11 +33,17 @@
         return;
       }
       list.innerHTML = projects.map(function (p) {
-        return '<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>' + esc(p.name) + '</b> <span class="pill">' + esc(p.lab) + '</span><div class="small muted">' + esc(p.description || '') + '</div><div class="small muted">Updated ' + esc(p.updated_at || '') + '</div></div>' +
-          '<div class="btn-row" style="margin:0"><button class="secondary" data-open="' + p.id + '">Open</button><button class="secondary" data-duplicate="' + p.id + '">Duplicate</button><button class="danger" data-delete="' + p.id + '" data-name="' + esc(p.name) + '">Delete</button></div></div></div>';
+        return '<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>' + esc(p.name) + '</b> <span class="pill">' + esc(p.lab) + '</span> <span class="pill">' + (p.visibility === 'public' ? '🌐 PUBLIC' : '🔒 PRIVATE') + '</span><div class="small muted">' + esc(p.description || '') + '</div><div class="small muted">Updated ' + esc(p.updated_at || '') + '</div></div>' +
+          '<div class="btn-row" style="margin:0"><button class="secondary" data-open="' + p.id + '">Open</button>' + (p.visibility === 'public' ? '<button class="secondary" data-vis="' + p.id + '" data-to="private">Make private</button>' : '<button class="secondary" data-vis="' + p.id + '" data-to="public">Publish</button>') + '<button class="secondary" data-duplicate="' + p.id + '">Duplicate</button><button class="danger" data-delete="' + p.id + '" data-name="' + esc(p.name) + '">Delete</button></div></div></div>';
       }).join('');
       list.querySelectorAll('[data-open]').forEach(function (b) { b.addEventListener('click', function () { openProject(b.getAttribute('data-open')); }); });
       list.querySelectorAll('[data-duplicate]').forEach(function (b) { b.addEventListener('click', async function () { await window.AIELAB_AUTH.api('POST', '/api/v1/projects/' + b.getAttribute('data-duplicate') + '/duplicate'); loadProjects(); }); });
+      list.querySelectorAll('[data-vis]').forEach(function (b) { b.addEventListener('click', async function () {
+        var to = b.getAttribute('data-to');
+        if (to === 'public' && !confirm('Publish this project? Anyone will be able to view its name, description, category, your username and its published design data.')) return;
+        await window.AIELAB_AUTH.api('POST', '/api/v1/projects/' + b.getAttribute('data-vis') + '/' + (to === 'public' ? 'publish' : 'unpublish'));
+        loadProjects();
+      }); });
       list.querySelectorAll('[data-delete]').forEach(function (b) { b.addEventListener('click', async function () {
         if (!confirm('Delete "' + b.getAttribute('data-name') + '"? This cannot be undone.')) return;
         await window.AIELAB_AUTH.api('DELETE', '/api/v1/projects/' + b.getAttribute('data-delete'));
@@ -58,6 +64,8 @@
       el('edit-name').value = current.name;
       el('edit-desc').value = current.description || '';
       el('edit-lab').value = current.lab;
+      el('edit-visibility').value = current.visibility || 'private';
+      el('visibility-status').textContent = (current.visibility === 'public' ? '🌐 PUBLIC — visible in the Public Gallery' : '🔒 PRIVATE — only you can see it');
       el('edit-payload').value = JSON.stringify(current.payload || {}, null, 2);
       el('project-editor').style.display = 'block';
       el('project-editor').scrollIntoView({ behavior: 'smooth' });
@@ -88,7 +96,7 @@
       catch (e) { alert('Design data is not valid JSON: ' + e.message); return; }
       try {
         var r = await window.AIELAB_AUTH.api('PATCH', '/api/v1/projects/' + current.id,
-          { name: el('edit-name').value.trim(), description: el('edit-desc').value.trim(), lab: el('edit-lab').value, payload: payload });
+          { name: el('edit-name').value.trim(), description: el('edit-desc').value.trim(), lab: el('edit-lab').value, visibility: el('edit-visibility').value, payload: payload });
         current = r.project;
         el('editor-title').textContent = 'Editing: ' + current.name;
         el('save-status').textContent = 'Saved at ' + new Date().toLocaleTimeString() + ' — progress persists on the server.';

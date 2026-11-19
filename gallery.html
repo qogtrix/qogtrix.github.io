@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public Gallery — AI Engineering Laboratory</title>
+<meta name="description" content="Public engineering projects published by users of the AI Engineering Laboratory. Private projects never appear here.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 3 · Visibility</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Only projects their owners chose to publish appear here. Private projects are never listed.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">Public Gallery</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 3</span>
+  </header>
+  <main class="content">
+    <h1>Public Engineering Gallery</h1>
+    <p>Projects that other engineers chose to publish. You can view them, but you cannot edit or delete someone else's project. Private projects never appear here — not in the list, not in search.</p>
+    <div class="notice info">No sign-in needed to browse. To publish your own project, <a href="auth.html">sign in</a> and use My Projects.</div>
+    <div class="toolbar">
+      <input id="gallery-search" type="search" placeholder="Search published projects…" style="flex:2;min-width:200px">
+      <select id="gallery-lab">
+        <option value="">All categories</option><option value="mechanical">Mechanical</option><option value="electrical">Electrical</option>
+        <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials</option>
+      </select>
+    </div>
+    <div class="notice err" id="gallery-error" style="display:none"></div>
+    <div class="grid cols-2" id="gallery-list"><p class="muted">Loading published projects…</p></div>
+    <div class="notice info" id="gallery-empty" style="display:none">No published projects match that search yet. Be the first to publish one from My Projects.</div>
+    <div class="card" id="gallery-detail" style="display:none;margin-top:18px"></div>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 3 — Private &amp; Public Visibility</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/gallery.js"></script>
+</body>
+</html>

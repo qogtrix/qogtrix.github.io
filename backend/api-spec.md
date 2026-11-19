@@ -36,6 +36,33 @@ Auth: `Authorization: Bearer <session token>` or
 All project errors: 401 unauthenticated, 404 not yours / not found,
 400 validation.
 
+## Unique usernames (Stage 3)
+
+- Register now requires `username` (3–30 chars, `[a-z0-9_]`, unique
+  case-insensitively) → 409 if taken.
+- Login accepts `email` **or** `username` as the identifier.
+- `PATCH /api/v1/auth/me` accepts `username` (409 if taken).
+- Public responses show `owner_username` only — never email.
+
+## Visibility (Stage 3)
+
+- `POST /api/v1/projects` — new projects are **always private**;
+  a `visibility` value in the request is ignored.
+- `POST /api/v1/projects/{id}/publish` — owner only → `public`.
+- `POST /api/v1/projects/{id}/unpublish` — owner only → `private`.
+- `PATCH /api/v1/projects/{id}` — owner may set `visibility`
+  to `private` or `public`.
+- Duplicates are always created private.
+- `GET /api/v1/projects?visibility=private|public` — owner's own
+  projects, filterable by visibility.
+
+## Public gallery (Stage 3, no auth required)
+
+- `GET /api/v1/public/projects?q=&lab=` — public projects only,
+  newest first. Response contains no `email` or `owner_id`.
+- `GET /api/v1/public/projects/{id}` — public project detail
+  (read-only); 404 for private or nonexistent projects.
+
 ## Public data (read-only)
 
 `GET /api/v1/materials`, `GET /api/v1/components` — served from

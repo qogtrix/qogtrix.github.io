@@ -14,6 +14,7 @@
   <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
   <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
   <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
   <div class="nav-label">Laboratories</div>
   <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
   <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
@@ -70,6 +71,10 @@
       <h3 id="editor-title">Editing project</h3>
       <p><label class="small muted">Name</label><br><input id="edit-name" type="text" style="width:100%"></p>
       <p><label class="small muted">Description</label><br><textarea id="edit-desc" rows="2" style="width:100%"></textarea></p>
+      <p><label class="small muted">Visibility</label> <span class="small" id="visibility-status"></span><br><select id="edit-visibility">
+        <option value="private">🔒 Private — only you</option>
+        <option value="public">🌐 Public — listed in the gallery</option>
+      </select></p>
       <p><label class="small muted">Laboratory</label><br><select id="edit-lab">
         <option value="general">General</option><option value="mechanical">Mechanical</option><option value="electrical">Electrical</option>
         <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials Science</option>

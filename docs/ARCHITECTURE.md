@@ -229,3 +229,55 @@ backend/test_stage2.py  backend/.gitignore
 db/schema.sql (v2: users, sessions, api_keys, owner_id, RLS)
 docs/MUSE_INTEGRATION.md  docs/TEST_RESULTS_STAGE2.md
 ```
+
+---
+
+# Stage 3 — Private and Public Project Visibility (19 Nov 2026)
+
+## 16. Visibility model
+
+- `projects.visibility` is `'private'` or `'public'`, default `'private'`.
+- **Creation always forces private.** The backend ignores any
+  `visibility` value sent with `POST /api/v1/projects`. Publishing
+  is a separate, explicit owner action: `POST /projects/{id}/publish`,
+  `POST /projects/{id}/unpublish`, or `PATCH` with `visibility`.
+- **Copies are always private**, even when the source is public.
+- Public endpoints (`GET /api/v1/public/projects`, `GET /.../{id}`)
+  need no auth and query only `visibility='public'`. They return a
+  restricted view: id, name, description, lab, owner *username*,
+  published payload, timestamps. Never `owner_id` or email.
+- Private projects are invisible everywhere else: public list,
+  public search, public detail (404), owner-scoped API (404 for
+  non-owners), and the gallery page (which only calls the public API).
+- There are no file attachments in Stage 3. The rule for them is
+  fixed now so Stage 4 cannot get it wrong: any future attachment
+  download must go through the same owner-or-public check as the
+  project detail endpoint — never a direct static URL.
+
+## 17. Unique usernames
+
+- `users.username`: 3–30 chars, `[a-z0-9_]`, lowercased, UNIQUE
+  (case-insensitive — `Alice` and `alice` collide by design).
+- Required at registration; login accepts email *or* username;
+  changeable in Account Settings if the new name is free.
+- The username is the only owner identifier shown publicly.
+  Existing Stage 2 accounts are backfilled from their email local
+  part by the migration in `backend/db.py`.
+
+## 18. Future preparation (not implemented)
+
+- Public sharing (links), downloadable designs, version history,
+  public comments, collaboration — documented here only.
+  Planned tables: `project_versions`, `comments`, `shares`.
+  None are created in Stage 3, and no comment/share UI exists.
+
+## 19. Stage 3 file map (additions)
+
+```
+gallery.html  assets/js/gallery.js
+backend/test_stage3.py
+docs/TEST_RESULTS_STAGE3.md
+(changed: backend/app.py, backend/db.py, db/schema.sql,
+ assets/js/auth.js, assets/js/projects.js, auth.html,
+ projects.html, settings.html, all navs)
+```

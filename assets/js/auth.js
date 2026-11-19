@@ -70,7 +70,7 @@
       var err = document.getElementById('register-error'); clearError(err);
       var btn = reg.querySelector('button'); btn.disabled = true; btn.textContent = 'Creating account…';
       try {
-        var r = await api('POST', '/api/v1/auth/register', { name: document.getElementById('register-name').value.trim(), email: document.getElementById('register-email').value.trim(), password: document.getElementById('register-password').value });
+        var r = await api('POST', '/api/v1/auth/register', { name: document.getElementById('register-name').value.trim(), username: document.getElementById('register-username').value.trim(), email: document.getElementById('register-email').value.trim(), password: document.getElementById('register-password').value });
         setToken(r.token); setUser(r.user);
         location.href = 'projects.html';
       } catch (ex) { showError(err, ex); btn.disabled = false; btn.textContent = 'Create account'; }

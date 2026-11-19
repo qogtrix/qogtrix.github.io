@@ -28,6 +28,12 @@ import db as dbmod
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+USERNAME_RE = re.compile(r"^[a-z0-9_]{3,30}$")
+# Lab names shown in the public gallery (Stage 3)
+LAB_LABELS = {"general": "General", "mechanical": "Mechanical",
+              "electrical": "Electrical", "structural": "Structural",
+              "aerospace": "Aerospace", "robotics": "Robotics",
+              "materials": "Materials"}
 MAX_BODY = 1_000_000
 LOGIN_LIMIT = 5  # failed attempts per 15 min, per email (in-memory)
 _login_failures: dict[str, list[float]] = {}
@@ -190,6 +196,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, data)
             if path.startswith("/api/v1/auth/"):
                 return self._route_auth(path, method)
+            if path.startswith("/api/v1/public/projects"):
+                return self._route_public_projects(path, method, query)
             if path.startswith("/api/v1/projects"):
                 return self._route_projects(path, method, query)
             if path.startswith("/api/v1/simulate/"):
@@ -212,10 +220,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/auth/register" and method == "POST":
             data = self._read_json()
             email = str(data.get("email", "")).strip().lower()
+            username = str(data.get("username", "")).strip().lower()
             name = str(data.get("name", "")).strip()
             password = str(data.get("password", ""))
             if not EMAIL_RE.match(email):
                 raise ApiError(400, "Enter a valid email address")
+            if not USERNAME_RE.match(username):
+                raise ApiError(400, "Username must be 3–30 characters: lowercase letters, numbers and _ only")
             if len(name) < 2 or len(name) > 80:
                 raise ApiError(400, "Name must be 2–80 characters")
             if len(password) < 8:
@@ -223,11 +234,14 @@ class Handler(BaseHTTPRequestHandler):
             if self.conn.execute("SELECT 1 FROM users WHERE email=?",
                                  (email,)).fetchone():
                 raise ApiError(409, "An account with this email already exists")
+            if self.conn.execute("SELECT 1 FROM users WHERE username=?",
+                                 (username,)).fetchone():
+                raise ApiError(409, "That username is already taken — choose another")
             uid = dbmod.new_id("user")
             self.conn.execute(
-                "INSERT INTO users(id,email,name,password_hash,created_at,updated_at)"
-                " VALUES (?,?,?,?,?,?)",
-                (uid, email, name, authmod.hash_password(password),
+                "INSERT INTO users(id,email,username,name,password_hash,created_at,updated_at)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (uid, email, username, name, authmod.hash_password(password),
                  now_iso(), now_iso()))
             token = self._new_session(uid)
             self.conn.commit()
@@ -237,14 +251,16 @@ class Handler(BaseHTTPRequestHandler):
                                     "token": token})
         if path == "/api/v1/auth/login" and method == "POST":
             data = self._read_json()
-            email = str(data.get("email", "")).strip().lower()
+            # Identifier may be an email or a username (Stage 3).
+            identifier = str(data.get("email", "") or data.get("username", "")).strip().lower()
             password = str(data.get("password", ""))
-            if self._login_rate_limited(email):
+            if self._login_rate_limited(identifier):
                 raise ApiError(429, "Too many failed sign-ins — try again in 15 minutes")
-            user = self.conn.execute("SELECT * FROM users WHERE email=?",
-                                     (email,)).fetchone()
+            user = self.conn.execute(
+                "SELECT * FROM users WHERE email=? OR username=?",
+                (identifier, identifier)).fetchone()
             if not user or not authmod.verify_password(password, user["password_hash"]):
-                self._record_login_failure(email)
+                self._record_login_failure(identifier)
                 raise ApiError(401, "Email or password is incorrect")
             if user["locked_until"] and user["locked_until"] > now_iso():
                 raise ApiError(429, "Account temporarily locked — try again later")
@@ -268,11 +284,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/auth/me" and method == "PATCH":
             user = self._current_user()
             data = self._read_json()
-            name = str(data.get("name", "")).strip()
+            name = str(data.get("name", user["name"])).strip()
+            username = str(data.get("username", user["username"] or "")).strip().lower()
             if len(name) < 2 or len(name) > 80:
                 raise ApiError(400, "Name must be 2–80 characters")
-            self.conn.execute("UPDATE users SET name=?, updated_at=? WHERE id=?",
-                              (name, now_iso(), user["id"]))
+            if username and not USERNAME_RE.match(username):
+                raise ApiError(400, "Username must be 3–30 characters: lowercase letters, numbers and _ only")
+            if username and username != (user["username"] or ""):
+                if self.conn.execute("SELECT 1 FROM users WHERE username=? AND id!=?",
+                                     (username, user["id"])).fetchone():
+                    raise ApiError(409, "That username is already taken — choose another")
+            self.conn.execute("UPDATE users SET name=?, username=?, updated_at=? WHERE id=?",
+                              (name, username or user["username"], now_iso(), user["id"]))
             self.conn.commit()
             row = self.conn.execute("SELECT * FROM users WHERE id=?",
                                     (user["id"],)).fetchone()
@@ -351,17 +374,23 @@ class Handler(BaseHTTPRequestHandler):
         if len(parts) == 3 and method == "GET":
             q = (query.get("q", [""])[0] or "").strip().lower()
             lab = (query.get("lab", [""])[0] or "").strip()
-            sql = "SELECT * FROM projects WHERE owner_id=?"
+            vis = (query.get("visibility", [""])[0] or "").strip()
+            sql = dbmod.PROJECT_SELECT + " WHERE projects.owner_id=?"
             args: list = [user["id"]]
             if lab:
                 if lab not in LABS:
                     raise ApiError(400, "Unknown laboratory: " + lab)
-                sql += " AND lab=?"
+                sql += " AND projects.lab=?"
                 args.append(lab)
+            if vis:
+                if vis not in ("private", "public"):
+                    raise ApiError(400, "Unknown visibility: " + vis)
+                sql += " AND projects.visibility=?"
+                args.append(vis)
             if q:
-                sql += " AND (lower(name) LIKE ? OR lower(description) LIKE ?)"
+                sql += " AND (lower(projects.name) LIKE ? OR lower(projects.description) LIKE ?)"
                 args += ["%" + q + "%", "%" + q + "%"]
-            sql += " ORDER BY updated_at DESC, created_at DESC"
+            sql += " ORDER BY projects.updated_at DESC, projects.created_at DESC"
             rows = self.conn.execute(sql, args).fetchall()
             return self._send(200, {"projects": [dbmod.project_public(r) for r in rows]})
         if len(parts) == 3 and method == "POST":
@@ -376,28 +405,45 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(400, "Unknown laboratory: " + lab)
             if not isinstance(payload, dict):
                 raise ApiError(400, "payload must be a JSON object")
+            # Stage 3: new projects are ALWAYS private. A visibility value
+            # sent by the client is deliberately ignored here — publishing
+            # is an explicit, separate owner action (publish endpoint /
+            # PATCH visibility), never a side effect of creation.
             pid = dbmod.new_id("proj")
             self.conn.execute(
-                "INSERT INTO projects(id,owner_id,name,description,lab,payload,created_at,updated_at)"
-                " VALUES (?,?,?,?,?,?,?,?)",
-                (pid, user["id"], name, description, lab,
+                "INSERT INTO projects(id,owner_id,name,description,lab,visibility,payload,created_at,updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (pid, user["id"], name, description, lab, "private",
                  json.dumps(payload), now_iso(), now_iso()))
             self.conn.commit()
-            row = self.conn.execute("SELECT * FROM projects WHERE id=?",
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
                                     (pid,)).fetchone()
             return self._send(201, {"project": dbmod.project_public(row)})
         if len(parts) == 5 and parts[4] == "duplicate" and method == "POST":
             src = self._own_project(parts[3], user["id"])
             pid = dbmod.new_id("proj")
+            # Copies are always private, even when the source is public.
             self.conn.execute(
-                "INSERT INTO projects(id,owner_id,name,description,lab,payload,created_at,updated_at)"
-                " VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO projects(id,owner_id,name,description,lab,visibility,payload,created_at,updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
                 (pid, user["id"], src["name"] + " (copy)", src["description"],
-                 src["lab"], src["payload"], now_iso(), now_iso()))
+                 src["lab"], "private", src["payload"], now_iso(), now_iso()))
             self.conn.commit()
-            row = self.conn.execute("SELECT * FROM projects WHERE id=?",
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
                                     (pid,)).fetchone()
             return self._send(201, {"project": dbmod.project_public(row)})
+        if len(parts) == 5 and parts[4] in ("publish", "unpublish") and method == "POST":
+            # Explicit visibility change. Only the owner reaches here:
+            # _own_project enforces ownership and returns 404 otherwise.
+            row = self._own_project(parts[3], user["id"])
+            new_vis = "public" if parts[4] == "publish" else "private"
+            self.conn.execute(
+                "UPDATE projects SET visibility=?, updated_at=? WHERE id=? AND owner_id=?",
+                (new_vis, now_iso(), parts[3], user["id"]))
+            self.conn.commit()
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
+                                    (parts[3],)).fetchone()
+            return self._send(200, {"project": dbmod.project_public(row)})
         if len(parts) == 4 and method in ("GET", "PATCH", "DELETE"):
             pid = parts[3]
             if method == "GET":
@@ -414,20 +460,23 @@ class Handler(BaseHTTPRequestHandler):
             name = str(data.get("name", row["name"])).strip()
             description = str(data.get("description", row["description"])).strip()
             lab = str(data.get("lab", row["lab"])).strip()
+            visibility = str(data.get("visibility", row["visibility"] or "private")).strip()
             payload = data.get("payload", json.loads(row["payload"]))
             if len(name) < 2 or len(name) > 120:
                 raise ApiError(400, "Project name must be 2–120 characters")
             if lab not in LABS:
                 raise ApiError(400, "Unknown laboratory: " + lab)
+            if visibility not in ("private", "public"):
+                raise ApiError(400, "Visibility must be 'private' or 'public'")
             if not isinstance(payload, dict):
                 raise ApiError(400, "payload must be a JSON object")
             self.conn.execute(
-                "UPDATE projects SET name=?, description=?, lab=?, payload=?,"
+                "UPDATE projects SET name=?, description=?, lab=?, visibility=?, payload=?,"
                 " updated_at=? WHERE id=? AND owner_id=?",
-                (name, description, lab, json.dumps(payload), now_iso(),
+                (name, description, lab, visibility, json.dumps(payload), now_iso(),
                  pid, user["id"]))
             self.conn.commit()
-            row = self.conn.execute("SELECT * FROM projects WHERE id=?",
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
                                     (pid,)).fetchone()
             return self._send(200, {"project": dbmod.project_public(row)})
         raise ApiError(404, "Not found")
@@ -436,11 +485,43 @@ class Handler(BaseHTTPRequestHandler):
         """Fetch a project only if the caller owns it; otherwise 404
         (deliberately — no existence leak for other users' projects)."""
         row = self.conn.execute(
-            "SELECT * FROM projects WHERE id=? AND owner_id=?",
+            dbmod.PROJECT_SELECT + " WHERE projects.id=? AND projects.owner_id=?",
             (pid, owner_id)).fetchone()
         if not row:
             raise ApiError(404, "Project not found")
         return row
+
+    # -- public gallery (Stage 3, no auth required) --------------------
+    def _route_public_projects(self, path, method, query):
+        if method != "GET":
+            raise ApiError(404, "Not found")
+        parts = [p for p in path.split("/") if p]
+        # /api/v1/public/projects  (list)  or  /api/v1/public/projects/<id>
+        if len(parts) == 4:
+            q = (query.get("q", [""])[0] or "").strip().lower()
+            lab = (query.get("lab", [""])[0] or "").strip()
+            sql = dbmod.PROJECT_SELECT + " WHERE projects.visibility='public'"
+            args: list = []
+            if lab:
+                if lab not in LABS:
+                    raise ApiError(400, "Unknown laboratory: " + lab)
+                sql += " AND projects.lab=?"
+                args.append(lab)
+            if q:
+                sql += " AND (lower(projects.name) LIKE ? OR lower(projects.description) LIKE ?)"
+                args += ["%" + q + "%", "%" + q + "%"]
+            sql += " ORDER BY projects.updated_at DESC, projects.created_at DESC"
+            rows = self.conn.execute(sql, args).fetchall()
+            return self._send(200, {"projects": [dbmod.project_public_view(r) for r in rows]})
+        if len(parts) == 5:
+            row = self.conn.execute(
+                dbmod.PROJECT_SELECT + " WHERE projects.id=? AND projects.visibility='public'",
+                (parts[4],)).fetchone()
+            if not row:
+                # Private or nonexistent — same answer, no leak.
+                raise ApiError(404, "Project not found")
+            return self._send(200, {"project": dbmod.project_public_view(row)})
+        raise ApiError(404, "Not found")
 
 
 def main():

@@ -14,6 +14,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE,
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     failed_attempts INTEGER NOT NULL DEFAULT 0,
@@ -22,6 +23,11 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
+-- Username rules (enforced in backend/app.py, Stage 3):
+-- 3–30 chars, lowercase letters / numbers / _ only, unique
+-- case-insensitively (stored lowercased). Shown publicly in the
+-- gallery; email is NEVER shown publicly.
 
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
@@ -78,12 +84,20 @@ CREATE TABLE IF NOT EXISTS projects (
     lab TEXT NOT NULL DEFAULT 'general'
         CHECK (lab IN ('general','mechanical','electrical','structural',
                        'aerospace','robotics','materials')),
+    visibility TEXT NOT NULL DEFAULT 'private'
+        CHECK (visibility IN ('private','public')),
     payload TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
 CREATE INDEX IF NOT EXISTS idx_projects_owner_lab ON projects(owner_id, lab);
+CREATE INDEX IF NOT EXISTS idx_projects_public ON projects(visibility, updated_at);
+-- Visibility rules (Stage 3): new projects are ALWAYS private.
+-- Publishing is an explicit owner action only. Public listings
+-- must query visibility='public' — never rely on the UI to hide
+-- private projects. Future tables (NOT created in Stage 3):
+-- project_versions, comments, shares, collaborations.
 
 CREATE TABLE IF NOT EXISTS simulations (
     id TEXT PRIMARY KEY,
@@ -119,6 +133,13 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs(user_id);
 --   CREATE POLICY projects_owner_isolation ON projects
 --     USING (owner_id = current_setting('app.current_user_id', true))
 --     WITH CHECK (owner_id = current_setting('app.current_user_id', true));
+--   -- Stage 3, public read: anonymous visitors may SELECT public rows only.
+--   CREATE POLICY projects_public_read ON projects FOR SELECT
+--     USING (visibility = 'public');
+--   -- Note: the two policies combine with OR for SELECT, so an owner
+--   -- sees their own (private + public) projects and anyone sees
+--   -- public ones. INSERT/UPDATE/DELETE stay owner-only via the
+--   -- owner-isolation policy above.
 --   CREATE POLICY simulations_owner_isolation ON simulations
 --     USING (owner_id = current_setting('app.current_user_id', true))
 --     WITH CHECK (owner_id = current_setting('app.current_user_id', true));

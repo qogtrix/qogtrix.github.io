@@ -88,3 +88,19 @@ docs/*.md
   site shows the Stage 2 frontend with a clear "backend must be
   running" state; the working authenticated app is the hosted
   fullstack version.
+
+## Stage 3 — Private and Public Project Visibility (19 Nov 2026)
+
+- Every user has a **unique username** (3–30 chars, login by email
+  or username). The gallery shows `@username`, never email.
+- Every project is **private by default** — even if a client asks
+  for public on creation. Owners publish explicitly (Publish button,
+  or visibility control in the project editor).
+- **Public Gallery** (`gallery.html`): recently published projects,
+  category filter, search, read-only detail. Private projects never
+  appear in the list, search, or detail — direct URLs return 404.
+- Tests: `backend/test_stage3.py`, **34/34 passed** (A–G sequence
+  with Alice/Bob + username + leak checks); Stage 2 suite still 34/34.
+  See `docs/TEST_RESULTS_STAGE3.md`.
+- Future sharing / downloads / version history / comments /
+  collaboration are prepared in the architecture only, not built.

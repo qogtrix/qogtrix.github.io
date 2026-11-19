@@ -106,3 +106,36 @@ actually built and checked. Anything labelled "Stage 2" is not done.
 - [ ] GitHub Pages cannot run the backend — the static site shows the
       Stage 2 frontend with a "backend must be running" state; the
       working authenticated app is the hosted fullstack version
+
+---
+
+# Stage 3 — Private and Public Project Visibility (19 Nov 2026)
+
+## Completed in Stage 3
+
+- [x] Visibility: private (default) / public on every project;
+      new projects always private, even if the client asks for public
+- [x] Explicit publish / unpublish (dedicated endpoints + PATCH
+      visibility + control in the project editor and My Projects list)
+- [x] Public gallery (`gallery.html`): recent published projects,
+      category filter, search, owner username, read-only detail view
+- [x] Unique usernames: required at registration, login by email or
+      username, changeable if free, shown in the gallery instead of email
+- [x] Security: server-side ownership checks on every mutation,
+      public endpoints query visibility='public' only, private projects
+      return 404 to everyone else (including via guessed URLs), no
+      email/owner_id in any public response
+- [x] Tests: backend/test_stage3.py — 34/34 passed (A–G sequence +
+      username + leak checks); Stage 2 suite still 34/34
+- [x] Docs updated: ARCHITECTURE.md, STATUS.md, api-spec.md,
+      TEST_RESULTS_STAGE3.md, README.md, RUN_DEPLOY.md
+
+## Incomplete / explicitly NOT in Stage 3
+
+- [ ] Public sharing links, downloadable designs, version history,
+      public comments, collaboration (prepared only, see ARCHITECTURE §18)
+- [ ] File attachments (none exist yet; access rule is documented)
+- [ ] Project preview images in the gallery (no images exist yet;
+      gallery shows published design data instead)
+- [ ] Live Postgres RLS execution (policies defined in schema.sql;
+      SQLite + backend checks are the tested layers)

@@ -65,21 +65,21 @@ def main():
 
         # --- registration ---
         s, alice = req(base, "POST", "/api/v1/auth/register",
-                       body={"email": "alice@example.com", "password": "correct-horse-1", "name": "Alice"})
+                       body={"email": "alice@example.com", "username": "alice", "password": "correct-horse-1", "name": "Alice"})
         check("register Alice", s == 201 and alice.get("token"), f"HTTP {s}")
         alice_tok = alice.get("token", "")
         s, bob = req(base, "POST", "/api/v1/auth/register",
-                     body={"email": "bob@example.com", "password": "correct-horse-2", "name": "Bob"})
+                     body={"email": "bob@example.com", "username": "bob", "password": "correct-horse-2", "name": "Bob"})
         check("register Bob", s == 201 and bob.get("token"), f"HTTP {s}")
         bob_tok = bob.get("token", "")
         s, _ = req(base, "POST", "/api/v1/auth/register",
-                   body={"email": "alice@example.com", "password": "correct-horse-1", "name": "Alice2"})
+                   body={"email": "alice@example.com", "username": "alice2", "password": "correct-horse-1", "name": "Alice2"})
         check("duplicate email rejected (409)", s == 409, f"HTTP {s}")
         s, _ = req(base, "POST", "/api/v1/auth/register",
-                   body={"email": "bad-email", "password": "correct-horse-1", "name": "X"})
+                   body={"email": "bad-email", "username": "xuser", "password": "correct-horse-1", "name": "X"})
         check("invalid email rejected (400)", s == 400, f"HTTP {s}")
         s, _ = req(base, "POST", "/api/v1/auth/register",
-                   body={"email": "c@example.com", "password": "short", "name": "C"})
+                   body={"email": "c@example.com", "username": "cuser", "password": "short", "name": "C"})
         check("short password rejected (400)", s == 400, f"HTTP {s}")
 
         # --- login / auth errors ---

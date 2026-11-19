@@ -32,7 +32,34 @@ def init_db(conn: sqlite3.Connection) -> None:
     # SQLite must only run the portable part before it.
     sql = sql.split("-- === POSTGRES RLS")[0]
     conn.executescript(sql)
+    _migrate(conn)
     conn.commit()
+
+
+def _columns(conn, table: str) -> set:
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Stage 2 -> Stage 3 migrations for existing databases.
+    Fresh databases already have the columns from schema.sql."""
+    import re as _re
+    if "username" not in _columns(conn, "users"):
+        conn.execute("ALTER TABLE users ADD COLUMN username TEXT")
+        # Backfill: derive a unique username from the email local part.
+        for row in conn.execute("SELECT id, email FROM users WHERE username IS NULL OR username=''"):
+            base = _re.sub(r"[^a-z0-9_]", "_", row["email"].split("@")[0].lower()).strip("_") or "user"
+            if len(base) < 3:
+                base = (base + "user")[:30]
+            candidate, n = base[:30], 2
+            while conn.execute("SELECT 1 FROM users WHERE username=?", (candidate,)).fetchone():
+                candidate = f"{base[:24]}_{n}"
+                n += 1
+            conn.execute("UPDATE users SET username=? WHERE id=?", (candidate, row["id"]))
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+    if "visibility" not in _columns(conn, "projects"):
+        conn.execute("ALTER TABLE projects ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'")
+        conn.execute("UPDATE projects SET visibility='private' WHERE visibility IS NULL OR visibility=''")
 
 
 def new_id(prefix: str) -> str:
@@ -40,17 +67,44 @@ def new_id(prefix: str) -> str:
 
 
 def user_public(row) -> dict:
-    return {"id": row["id"], "email": row["email"], "name": row["name"],
-            "created_at": row["created_at"]}
+    return {"id": row["id"], "email": row["email"],
+            "username": row["username"] if "username" in row.keys() else None,
+            "name": row["name"], "created_at": row["created_at"]}
 
 
 def project_public(row) -> dict:
+    """Owner view: full project, including owner_id and visibility."""
     payload = row["payload"]
     try:
         payload = json.loads(payload) if payload else {}
     except Exception:
         payload = {}
+    keys = row.keys()
     return {"id": row["id"], "owner_id": row["owner_id"],
+            "owner_username": row["owner_username"] if "owner_username" in keys else None,
             "name": row["name"], "description": row["description"],
-            "lab": row["lab"], "payload": payload,
+            "lab": row["lab"],
+            "visibility": row["visibility"] if "visibility" in keys else "private",
+            "payload": payload,
             "created_at": row["created_at"], "updated_at": row["updated_at"]}
+
+
+def project_public_view(row) -> dict:
+    """Public gallery view: published information only.
+    Never includes owner_id or email — only the public username."""
+    payload = row["payload"]
+    try:
+        payload = json.loads(payload) if payload else {}
+    except Exception:
+        payload = {}
+    keys = row.keys()
+    return {"id": row["id"],
+            "owner_username": row["owner_username"] if "owner_username" in keys else None,
+            "name": row["name"], "description": row["description"],
+            "lab": row["lab"], "visibility": "public",
+            "payload": payload,
+            "created_at": row["created_at"], "updated_at": row["updated_at"]}
+
+
+PROJECT_SELECT = ("SELECT projects.*, users.username AS owner_username "
+                  "FROM projects JOIN users ON users.id = projects.owner_id")
