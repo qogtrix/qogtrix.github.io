@@ -109,7 +109,7 @@ SOLVER_REGISTRY = {
         "method": "analytical",
         "engine": "python-analytical",
         "status": "available",
-        "inputs": ["velocity_m_s", "area_m2", "cd", "cl", "fluid"],
+        "inputs": ["velocity_m_s", "area_m2", "cd", "cl", "fluid", "length_m"],
         "outputs": ["drag_N", "lift_N", "reynolds", "dynamic_pressure_Pa"],
         "requires": [],
         "assumptions": [
@@ -991,6 +991,19 @@ def run_solver(solver, inputs, material_props):
         raise ValueError("robotics design solvers run through "
                          "POST /api/v1/robotics/analyze, not the scalar "
                          "solver endpoint")
+    # Reject unknown input keys. A misspelt parameter used to be
+    # silently ignored and the solver then computed with a default
+    # instead of the value the caller meant — a wrong but plausible
+    # result. "material_id" is a universal pass-through (it selects
+    # the material properties) and "_" prefixed keys are internal
+    # markers from the assistant; both are allowed.
+    allowed = set(meta["inputs"]) | {"material_id"}
+    unknown = [k for k in (inputs or {}) if k not in allowed and not k.startswith("_")]
+    if unknown:
+        raise ValueError(
+            f"{solver}: unknown input(s): {', '.join(sorted(unknown))} — "
+            f"accepted inputs are {', '.join(meta['inputs'])}")
+
     # Material requirements.
     props = {}
     for key in meta["requires"]:

@@ -424,6 +424,7 @@ document.querySelectorAll("[data-analysis]").forEach((el) => { el.style.display 
 $("btn-run").addEventListener("click", async () => {
   const errors = validateLocal();
   if (errors.length) { $("sim-results").innerHTML = "<p class='warn-list'>" + errors.map(esc).join("<br>") + "</p>"; return; }
+  if (backendDown) { $("sim-results").innerHTML = "<p class='warn-list'>The backend is not reachable — sign-in and simulation both need it. Start it with <code>cd backend && python3 app.py</code>.</p>"; return; }
   if (!projectId) { $("sim-results").innerHTML = "<p>Sign in and pick a project to run the simulation — the solver runs on the backend and stores the result as a job on that project. The circuit itself is saved in your browser.</p>"; return; }
   const type = $("analysis-type").value;
   const analysis = { type };
@@ -529,6 +530,7 @@ const CALC_FIELDS = {
 };
 const UNIT_LABELS = { voltage_V: "V", current_A: "A", resistance_ohm: "Ω", power_W: "W", tau_s: "s", cutoff_hz: "Hz", voltage_at_tau_V: "V", settle_5tau_s: "s", resonant_freq_hz: "Hz", angular_freq_rad_s: "rad/s", quality_factor: "", bandwidth_hz: "Hz", apparent_power_VA: "VA", real_power_W: "W", reactive_power_var: "var", phase_angle_deg: "°", secondary_voltage_V: "V", turns_ratio: "", secondary_current_A: "A", primary_current_A: "A", stall_current_A: "A", stall_torque_Nm: "N·m", no_load_speed_rpm: "rpm", speed_rpm: "rpm", power_in_W: "W", power_out_W: "W", efficiency: "", total_voltage_V: "V", total_capacity_Ah: "Ah", energy_Wh: "Wh", runtime_h: "h", motor_speed_rpm: "rpm", motor_torque_Nm: "N·m", output_speed_rpm: "rpm", output_torque_Nm: "N·m", motor_current_A: "A", inductance_H: "H", field_T: "T", flux_Wb: "Wb", energy_J: "J", resistivity_ohm_m: "Ω·m", voltage_drop_V: "V", power_loss_W: "W", equivalent: "" };
 let solverMeta = {};
+let backendDown = false;  // set when the solver list cannot be fetched
 async function loadSolvers() {
   try {
     const data = await api("/api/v1/solvers");
@@ -541,7 +543,7 @@ async function loadSolvers() {
       sel.appendChild(o);
     }
     renderCalcForm();
-  } catch { $("calc-form").innerHTML = "<p class='warn-list'>Backend not reachable — start it with <code>cd backend && python3 app.py</code>.</p>"; }
+  } catch { backendDown = true; $("calc-form").innerHTML = "<p class='warn-list'>Backend not reachable — start it with <code>cd backend && python3 app.py</code>.</p>"; }
 }
 function renderCalcForm() {
   const id = $("calc-solver").value;
@@ -555,6 +557,7 @@ function renderCalcForm() {
 $("calc-solver").addEventListener("change", renderCalcForm);
 $("btn-calc-run").addEventListener("click", async () => {
   const id = $("calc-solver").value;
+  if (backendDown) { $("calc-results").innerHTML = "<p class='warn-list'>The backend is not reachable — start it with <code>cd backend && python3 app.py</code>.</p>"; return; }
   if (!projectId) { $("calc-results").innerHTML = "<p>Sign in and pick a project to run and store the calculation.</p>"; return; }
   const inputs = {};
   document.querySelectorAll("input[data-calc]").forEach((inp) => {

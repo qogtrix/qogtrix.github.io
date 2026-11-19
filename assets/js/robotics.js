@@ -481,7 +481,7 @@ async function runDiffDrive() {
         project_id: S.projectId, solver: 'diff_drive_fk',
         inputs: {
           wheel_radius_m: num('dd-r', 0.05), track_m: num('dd-track', 0.3),
-          v_left_m_s: num('dd-vl', 10), v_right_m_s: num('dd-vr', 10),
+          v_left_m_s: num('dd-vl', 0.5), v_right_m_s: num('dd-vr', 0.5),
           pose: S.pose.slice(), dt_s: num('dd-dt', 1),
         },
       }),

@@ -98,9 +98,9 @@ function initScene() {
 function clearModel() {
   if (rootGroup) { scene.remove(rootGroup); rootGroup = null; topLevel = []; }
 }
-function buildViewer() {
+async function buildViewer() {
   clearModel();
-  const res = evaluateModel(model);
+  const res = await evaluateModel(model);
   if (res.errors.length) setStatus('Model has errors: ' + res.errors.join('; '), 'warn');
   rootGroup = new THREE.Group();
   const objects = res.objects;
@@ -146,7 +146,7 @@ async function loadModel() {
     const data = await api('GET', '/api/v1/projects/' + projectId + '/model');
     model = data.model;
     setStatus('Model loaded: ' + model.components.length + ' components (version ' + data.version + ').');
-    initSceneIfNeeded(); buildViewer();
+    initSceneIfNeeded(); await buildViewer();
   } catch (e) { setStatus('Could not load the model: ' + e.message, 'warn'); }
 }
 let sceneReady = false;
@@ -164,7 +164,7 @@ $('load-demo').addEventListener('click', async () => {
     model = await res.json();
     projectId = null;
     setStatus('Demo loaded: ' + demo + ' (guest mode — sign in and save it to a project to keep it).');
-    initSceneIfNeeded(); buildViewer();
+    initSceneIfNeeded(); await buildViewer();
   } catch (e) { setStatus('Could not load the demo: ' + e.message, 'warn'); }
 });
 
@@ -245,7 +245,7 @@ async function addComponent(kind) {
     const data = await api('POST', '/api/v1/projects/' + projectId + '/model/components', { component: comp });
     model = data.model;
     setStatus(def.label + ' added (model version ' + data.version + ').');
-    buildViewer();
+    await buildViewer();
   } catch (e) { setStatus('Could not add the component: ' + e.message, 'warn'); }
 }
 

@@ -452,8 +452,11 @@ def validate_model(model, material_ids=None):
     if not isinstance(model, dict):
         return ["model must be an object"]
     errors = []
-    if not isinstance(model.get("version"), (int, float)) or model.get("version", 0) < 1:
-        errors.append("model.version must be a positive integer")
+    # Version 0 is the not-yet-saved state (the PUT handler stamps the
+    # server-assigned version before validating); only negative or
+    # non-numeric versions are invalid.
+    if not isinstance(model.get("version"), (int, float)) or model.get("version", 0) < 0:
+        errors.append("model.version must be a non-negative integer")
     if model.get("units") not in UNITS:
         errors.append("model.units must be one of: " + ", ".join(UNITS))
     comps = model.get("components")

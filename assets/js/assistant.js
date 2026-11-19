@@ -292,6 +292,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   if (!token()) {
     $('chat-log').innerHTML = '<p>Sign in first — the assistant is per-user, and every conversation belongs to your account. <a href="auth.html">Go to sign in →</a></p>';
+    // The panels below would otherwise sit on "Loading…" forever:
+    // loadStatus() is never reached for a guest.
+    $('provider-box').textContent = 'Sign in to see the assistant status.';
+    $('usage-box').textContent = 'Sign in to see your usage.';
+    $('tools-box').textContent = 'Sign in to see what the assistant can do.';
     return;
   }
   await loadProjects();

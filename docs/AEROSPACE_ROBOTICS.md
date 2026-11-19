@@ -110,8 +110,12 @@ the integrator removes it.
 Differential drive: forward kinematics (unicycle, one step),
 inverse kinematics (wheel speeds for a desired v, ω), and
 odometry (dead reckoning — labelled as drifting in the real
-world). Verified: 10 rad/s on both wheels, 0.05 m radius,
-1 s → 0.5 m straight; turn-in-place ω = 1 rad/s.
+world). Verified: 0.5 m/s on both wheels, 0.05 m radius,
+1 s → 0.5 m straight; turn-in-place ω = 1 rad/s (wheel speeds
+±0.15 m/s). NOTE (pre-Stage 12 audit): the original implementation
+treated these inputs as rad/s and multiplied by the wheel radius —
+a unit bug that made a 0.5 m/s input move the robot 0.05 m/s.
+Fixed so the values are linear m/s as their names state.
 
 ### Cross-lab: motor and links
 A robot design can carry a `motor` (Stage 8 `dc_motor`

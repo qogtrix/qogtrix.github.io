@@ -481,7 +481,12 @@ def trajectory_2d(inp):
         thrust = 0.0
         mdot = 0.0
         for ph in profile:
-            if ph["t_start_s"] <= t < ph["t_end_s"]:
+            # The end of a burn is exclusive. A 1e-9 tolerance keeps a
+            # step that lands on the boundary through float accumulation
+            # (t = 0.1 * 10 is 0.9999999999999999, not 1.0) from firing
+            # an extra thrust step — that bug cost 21% of apogee on a
+            # 1 s burn at dt = 0.1.
+            if ph["t_start_s"] - 1e-9 <= t < ph["t_end_s"] - 1e-9:
                 thrust = float(ph["thrust_N"])
                 mdot = float(ph["mdot_kg_s"])
         rho = isa_density(min(max(y, 0), 11000)) if y < 11000 else 0.0

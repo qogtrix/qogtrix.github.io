@@ -418,8 +418,23 @@ def main():
               str(status) + " " + str(body.get("status")))
         status, body = req(base, "POST", "/api/v1/circuits/simulate", token,
                            body={"project_id": pid, "circuit": bad, "analysis": {"type": "dc"}})
-        check("circuit job with no ground is recorded failed",
-              body.get("status") == "failed" and "ground" in str(body["results"].get("error")),
+        # Audit change: simulate now validates up front (like the
+        # validate endpoint), so a structurally invalid circuit is a
+        # 400, not a stored "failed" job. A failed job is reserved
+        # for circuits that validate but fail numerically.
+        check("circuit simulate: invalid circuit is a 400 with the error",
+              status == 400 and "ground" in str(body),
+              str(status) + " " + str(body))
+        conflict = {"name": "conflict", "components": [
+            {"id": "V1", "type": "voltage_source", "nodes": ["a", "0"],
+             "params": {"value": 5}},
+            {"id": "V2", "type": "voltage_source", "nodes": ["a", "0"],
+             "params": {"value": 10}}]}
+        status, body = req(base, "POST", "/api/v1/circuits/simulate", token,
+                           body={"project_id": pid, "circuit": conflict,
+                                 "analysis": {"type": "dc"}})
+        check("circuit job that validates but fails numerically is recorded failed",
+              body.get("status") == "failed" and "singular" in str(body["results"].get("error")),
               str(body.get("status")) + " " + str(body.get("results")))
         status, body = req(base, "POST", "/api/v1/circuits/simulate", bob_token,
                            body={"project_id": pid, "circuit": DIVIDER, "analysis": {"type": "dc"}})

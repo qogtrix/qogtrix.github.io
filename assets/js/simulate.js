@@ -115,20 +115,20 @@ async function loadModel() {
     const res = await api('/api/v1/projects/' + projectId + '/model');
     model = res.model;
     await loadMaterials();
-    buildSceneAndWorld();
+    await buildSceneAndWorld();
     setStatus('Model loaded: ' + model.components.length + ' components, version ' + model.version + '. Set body types, then Run.');
   } catch (e) { setStatus('Could not load the model: ' + e.message, true); }
 }
 $('load-model').addEventListener('click', loadModel);
 
-function buildSceneAndWorld() {
+async function buildSceneAndWorld() {
   initScene();
   if (world) { try { world.free(); } catch (e) {} }
   world = new RAPIER.World({ x: 0, y: -parseFloat($('gravity').value || 9.81), z: 0 });
   world.timestep = 1 / 60;
   rapierBodies = new Map(); bodyMeshes = new Map(); series = []; simT = 0; contactsSeen = 0; continuousForces = [];
   running = false; $('run-sim').disabled = false; $('pause-sim').disabled = true; $('step-sim').disabled = true; $('save-results').disabled = true;
-  const { objects, errors } = evaluateModel(model);
+  const { objects, errors } = await evaluateModel(model);
   if (errors.length) { setStatus('Model errors: ' + errors.join('; '), true); }
   const restitution = parseFloat($('restitution').value || 0.3);
   const friction = parseFloat($('friction').value || 0.5);
@@ -321,7 +321,7 @@ $('run-sim').addEventListener('click', () => {
 });
 $('pause-sim').addEventListener('click', () => { running = false; $('run-sim').disabled = false; $('pause-sim').disabled = true; $('step-sim').disabled = false; });
 $('step-sim').addEventListener('click', () => { if (!world) return; stepOnce(); });
-function resetSim() { if (!world) return; running = false; buildSceneAndWorld(); $('live-results').innerHTML = '<p class="muted">Nothing running yet.</p>'; $('sim-summary').innerHTML = '<p class="muted">Run a simulation to see its summary.</p>'; }
+async function resetSim() { if (!world) return; running = false; try { await buildSceneAndWorld(); } catch (e) { setStatus('Could not rebuild the scene: ' + e.message, true); } $('live-results').innerHTML = '<p class="muted">Nothing running yet.</p>'; $('sim-summary').innerHTML = '<p class="muted">Run a simulation to see its summary.</p>'; }
 $('reset-sim').addEventListener('click', resetSim);
 $('apply-force').addEventListener('click', () => {
   const b = rapierBodies.get($('force-body').value);

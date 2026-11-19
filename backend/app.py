@@ -80,12 +80,35 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # keep test output clean
         pass
 
+    def version_string(self):
+        # Do not advertise the Python version in the Server header.
+        return "AIELab"
+
     def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers",
-                         "Authorization, Content-Type")
-        self.send_header("Access-Control-Allow-Methods",
-                         "GET, POST, PATCH, DELETE, OPTIONS")
+        # The frontend is served from GitHub Pages (or a local dev
+        # server) while this backend runs on localhost, so cross-origin
+        # calls are legitimate — but only from those origins. A bare
+        # "*" would let any website in the browser call this backend
+        # (it could not read privileged data without the user's
+        # Bearer token, which lives in same-origin localStorage, but
+        # there is no reason to invite the probe). Unlisted origins
+        # get no CORS headers, so their scripts cannot read responses.
+        origin = self.headers.get("Origin") or ""
+        allowed = (
+            origin == "https://qogtrix.github.io"
+            or origin == "null"  # file:// pages during local development
+            or origin == "http://127.0.0.1"
+            or origin == "http://localhost"
+            or origin.startswith("http://127.0.0.1:")
+            or origin.startswith("http://localhost:")
+        )
+        if allowed:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers",
+                             "Authorization, Content-Type")
+            self.send_header("Access-Control-Allow-Methods",
+                             "GET, POST, PATCH, DELETE, OPTIONS")
 
     def _send(self, status: int, obj):
         body = json.dumps(obj).encode()
@@ -646,11 +669,19 @@ class Handler(BaseHTTPRequestHandler):
         }
 
     def _save_model(self, pid, owner_id, payload, model):
+        # Atomic optimistic-concurrency guard: the UPDATE only lands
+        # when the stored document is still at the version the caller
+        # read (candidate version - 1). Without this, two concurrent
+        # PUTs with the same base_version both passed the Python-side
+        # check and the last writer silently overwrote the first.
+        # A missing model counts as version 0 (see _model_of).
         payload["model"] = model
-        self.conn.execute(
-            "UPDATE projects SET payload=?, updated_at=? WHERE id=? AND owner_id=?",
-            (json.dumps(payload), now_iso(), pid, owner_id))
+        cur = self.conn.execute(
+            "UPDATE projects SET payload=?, updated_at=? WHERE id=? AND owner_id=? "
+            "AND COALESCE(json_extract(payload, '$.model.version'), 0) = ?",
+            (json.dumps(payload), now_iso(), pid, owner_id, model["version"] - 1))
         self.conn.commit()
+        return cur.rowcount == 1
 
     def _model_volumes(self, model):
         densities = {}
@@ -714,11 +745,17 @@ class Handler(BaseHTTPRequestHandler):
                                         f"(current version {model['version']}, "
                                         f"you based your edit on {base_version}). "
                                         "Reload the model and re-apply your change.")
+                # The version is server-assigned: stamp it before
+                # validation, otherwise a fresh model (version 0) fails
+                # its first save with "must be a positive integer".
+                candidate["version"] = model["version"] + 1
                 errors = modelmod.validate_model(candidate, self._material_ids())
                 if errors:
                     raise ApiError(400, "Invalid model: " + "; ".join(errors))
-                candidate["version"] = model["version"] + 1
-                self._save_model(pid, user["id"], payload, candidate)
+                if not self._save_model(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This model was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload the model and re-apply your change.")
                 return self._send(200, {"project_id": pid, "model": candidate,
                                         "volumes": self._model_volumes(candidate)})
             raise ApiError(404, "Not found")
@@ -734,7 +771,10 @@ class Handler(BaseHTTPRequestHandler):
             if errors:
                 raise ApiError(400, "Invalid component: " + "; ".join(errors))
             candidate["version"] = model["version"] + 1
-            self._save_model(pid, user["id"], payload, candidate)
+            if not self._save_model(pid, user["id"], payload, candidate):
+                raise ApiError(409, "This model was changed elsewhere "
+                                    "while your request was in flight. "
+                                    "Reload the model and retry.")
             return self._send(201, {"project_id": pid, "model": candidate,
                                     "component": comp})
         # PATCH / DELETE /api/v1/projects/<pid>/model/components/<cid>
@@ -755,7 +795,10 @@ class Handler(BaseHTTPRequestHandler):
                 candidate = {"version": model["version"], "units": model["units"],
                              "components": [c for c in comps if c.get("id") != cid]}
                 candidate["version"] = model["version"] + 1
-                self._save_model(pid, user["id"], payload, candidate)
+                if not self._save_model(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This model was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload the model and retry.")
                 return self._send(200, {"project_id": pid, "model": candidate})
             if method == "PATCH":
                 data = self._read_json()
@@ -773,7 +816,10 @@ class Handler(BaseHTTPRequestHandler):
                 if errors:
                     raise ApiError(400, "Invalid component: " + "; ".join(errors))
                 candidate["version"] = model["version"] + 1
-                self._save_model(pid, user["id"], payload, candidate)
+                if not self._save_model(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This model was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload the model and retry.")
                 return self._send(200, {"project_id": pid, "model": candidate,
                                         "component": updated})
             raise ApiError(404, "Not found")
@@ -950,6 +996,13 @@ class Handler(BaseHTTPRequestHandler):
             circuit = data.get("circuit")
             if not isinstance(circuit, dict):
                 raise ApiError(400, "circuit is required")
+            # Validate before running: without this, an invalid circuit
+            # (e.g. an unsupported component type) was only discovered
+            # inside the solver and stored as a "failed" job. The user
+            # deserves the same clear 400 the validate endpoint gives.
+            errors = circuitmod.validate_circuit(circuit)
+            if errors:
+                raise ApiError(400, "Invalid circuit: " + "; ".join(errors))
             analysis = data.get("analysis") or {}
             if not isinstance(analysis, dict):
                 raise ApiError(400, "analysis must be an object")
@@ -1013,11 +1066,15 @@ class Handler(BaseHTTPRequestHandler):
         return payload, structure
 
     def _save_structure(self, pid, owner_id, payload, structure):
+        # Atomic optimistic-concurrency guard (see _save_model). A
+        # missing structure counts as version 1 (see _structure_of).
         payload["structure"] = structure
-        self.conn.execute(
-            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
-            (json.dumps(payload), pid, owner_id))
+        cur = self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=? "
+            "AND COALESCE(json_extract(payload, '$.structure.version'), 1) = ?",
+            (json.dumps(payload), pid, owner_id, structure["version"] - 1))
         self.conn.commit()
+        return cur.rowcount == 1
 
     def _route_project_structure(self, path, method, query):
         parts = [p for p in path.split("/") if p]
@@ -1043,12 +1100,15 @@ class Handler(BaseHTTPRequestHandler):
                                         f"(current version {structure['version']}, "
                                         f"you based your edit on {base_version}). "
                                         "Reload the structure and re-apply your change.")
+                candidate["version"] = structure["version"] + 1
                 errors = structuremod.validate_structure(
                     candidate, self._material_ids())
                 if errors:
                     raise ApiError(400, "Invalid structure: " + "; ".join(errors))
-                candidate["version"] = structure["version"] + 1
-                self._save_structure(pid, user["id"], payload, candidate)
+                if not self._save_structure(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This structure was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload and re-apply your change.")
                 return self._send(200, {"project_id": pid,
                                         "structure": candidate})
             raise ApiError(404, "Not found")
@@ -1143,11 +1203,15 @@ class Handler(BaseHTTPRequestHandler):
         return payload, design
 
     def _save_aerospace(self, pid, owner_id, payload, design):
+        # Atomic optimistic-concurrency guard (see _save_model). A
+        # missing design counts as version 1 (see _aerospace_of).
         payload["aerospace"] = design
-        self.conn.execute(
-            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
-            (json.dumps(payload), pid, owner_id))
+        cur = self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=? "
+            "AND COALESCE(json_extract(payload, '$.aerospace.version'), 1) = ?",
+            (json.dumps(payload), pid, owner_id, design["version"] - 1))
         self.conn.commit()
+        return cur.rowcount == 1
 
     def _robot_of(self, row):
         payload = json.loads(row["payload"] or "{}")
@@ -1156,11 +1220,15 @@ class Handler(BaseHTTPRequestHandler):
         return payload, design
 
     def _save_robot(self, pid, owner_id, payload, design):
+        # Atomic optimistic-concurrency guard (see _save_model). A
+        # missing design counts as version 1 (see _robot_of).
         payload["robot"] = design
-        self.conn.execute(
-            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
-            (json.dumps(payload), pid, owner_id))
+        cur = self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=? "
+            "AND COALESCE(json_extract(payload, '$.robot.version'), 1) = ?",
+            (json.dumps(payload), pid, owner_id, design["version"] - 1))
         self.conn.commit()
+        return cur.rowcount == 1
 
     def _validate_aerospace_design(self, design):
         if not isinstance(design, dict):
@@ -1205,11 +1273,14 @@ class Handler(BaseHTTPRequestHandler):
                                         f"(current version {design['version']}, "
                                         f"you based your edit on {base_version}). "
                                         "Reload the design and re-apply your change.")
+                candidate["version"] = design["version"] + 1
                 errors = self._validate_aerospace_design(candidate)
                 if errors:
                     raise ApiError(400, "Invalid design: " + "; ".join(errors))
-                candidate["version"] = design["version"] + 1
-                self._save_aerospace(pid, user["id"], payload, candidate)
+                if not self._save_aerospace(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This design was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload and re-apply your change.")
                 return self._send(200, {"project_id": pid, "design": candidate})
             raise ApiError(404, "Not found")
         raise ApiError(404, "Not found")
@@ -1236,11 +1307,14 @@ class Handler(BaseHTTPRequestHandler):
                                         f"(current version {design['version']}, "
                                         f"you based your edit on {base_version}). "
                                         "Reload the design and re-apply your change.")
+                candidate["version"] = design["version"] + 1
                 errors = self._validate_robot_design(candidate)
                 if errors:
                     raise ApiError(400, "Invalid design: " + "; ".join(errors))
-                candidate["version"] = design["version"] + 1
-                self._save_robot(pid, user["id"], payload, candidate)
+                if not self._save_robot(pid, user["id"], payload, candidate):
+                    raise ApiError(409, "This design was changed elsewhere "
+                                        "while your request was in flight. "
+                                        "Reload and re-apply your change.")
                 return self._send(200, {"project_id": pid, "design": candidate})
             raise ApiError(404, "Not found")
         raise ApiError(404, "Not found")
@@ -1738,13 +1812,19 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(400, "The structure element no longer exists")
             target["section"] = change["section"]
             structure["version"] = int(structure.get("version") or 1) + 1
-            self._save_structure(proposal["project_id"], user["id"], _payload, structure)
+            if not self._save_structure(proposal["project_id"], user["id"], _payload, structure):
+                raise ApiError(409, "The project changed since this proposal "
+                                    "was made. Review the current structure "
+                                    "and ask for a fresh proposal.")
         elif proposal["target"] == "aerospace":
             _payload, design = self._aerospace_of(row)
             for k, v in change.items():
                 design[k] = v
             design["version"] = int(design.get("version") or 1) + 1
-            self._save_aerospace(proposal["project_id"], user["id"], _payload, design)
+            if not self._save_aerospace(proposal["project_id"], user["id"], _payload, design):
+                raise ApiError(409, "The project changed since this proposal "
+                                    "was made. Review the current design "
+                                    "and ask for a fresh proposal.")
         else:
             raise ApiError(400, f"Unsupported proposal target: {proposal['target']}")
         self.conn.execute(

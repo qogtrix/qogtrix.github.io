@@ -281,7 +281,9 @@
   function validateModel(model, materialIds) {
     var errors = [];
     if (!model || typeof model !== 'object') return ['model must be an object'];
-    if (typeof model.version !== 'number' || model.version < 1) errors.push('model.version must be a positive integer');
+    // Version 0 is the fresh, not-yet-saved canvas (the backend stamps
+    // version 1 on the first save) — not an error.
+    if (typeof model.version !== 'number' || model.version < 0) errors.push('model.version must be a non-negative integer');
     if (!UNITS.hasOwnProperty(model.units)) errors.push('model.units must be one of: ' + Object.keys(UNITS).join(', '));
     if (!Array.isArray(model.components)) return errors.concat(['model.components must be an array']);
     var ids = {}, byId = {};

@@ -191,6 +191,15 @@ def main():
     check("trajectory apogee 980 m (no-drag analytic)",
           approx(tr["apogee_m"], 980, 0.01), str(tr["apogee_m"]))
     check("trajectory range is 0 for a vertical launch", abs(tr["range_m"]) < 1e-6)
+    # Audit regression: a 1 s burn at dt=0.1 used to fire an extra
+    # thrust step (float accumulation put t just under 1.0) and
+    # overstate apogee by 21% (2346.7 m instead of 1939.8 m).
+    tr_b = aeromod.trajectory_2d({"mass_kg": 10, "diameter_m": 0.1, "cd": 0.0,
+                                  "launch_angle_deg": 90,
+                                  "thrust_profile": [{"t_start_s": 0, "t_end_s": 1,
+                                                      "thrust_N": 2000, "mdot_kg_s": 0}]})
+    check("trajectory: 1 s burn at dt=0.1 does not over-fire (apogee 1939.8 m)",
+          approx(tr_b["apogee_m"], 1939.8, 0.01), str(tr_b["apogee_m"]))
 
     cg = aeromod.centre_of_gravity([{"name": "a", "mass_kg": 3, "x_m": 0.5},
                                     {"name": "b", "mass_kg": 1, "x_m": 1.4}])
@@ -283,16 +292,16 @@ def main():
     check("PI error is much smaller than P-only error",
           abs(pid_pi["final_error_rad"]) < abs(pid_p["final_error_rad"]))
 
-    dd = robotmod.diff_drive_fk(0.05, 0.3, 10, 10, [0, 0, 0], 1.0)
+    dd = robotmod.diff_drive_fk(0.05, 0.3, 0.5, 0.5, [0, 0, 0], 1.0)
     check("diff-drive straight: 0.5 m in 1 s",
           abs_ok(dd["pose"][0], 0.5, 1e-9) and abs_ok(dd["pose"][1], 0, 1e-9))
-    dd = robotmod.diff_drive_fk(0.05, 0.3, -3, 3, [0, 0, 0], 1.0)
+    dd = robotmod.diff_drive_fk(0.05, 0.3, -0.15, 0.15, [0, 0, 0], 1.0)
     check("diff-drive turn in place: 1 rad/s",
           approx(dd["omega_rad_s"], 1.0, 0.001) and abs_ok(dd["v_m_s"], 0, 1e-9))
     ik_dd = robotmod.diff_drive_ik(0.05, 0.3, 0.5, 0)
-    check("diff-drive IK: 0.5 m/s needs 10 rad/s each",
-          approx(ik_dd["v_left_m_s"], 10, 0.001) and approx(ik_dd["v_right_m_s"], 10, 0.001))
-    odo = robotmod.diff_drive_odometry(0.05, 0.3, [10, 10, 10], [10, 10, 10], 1.0)
+    check("diff-drive IK: 0.5 m/s needs 0.5 m/s each",
+          approx(ik_dd["v_left_m_s"], 0.5, 0.001) and approx(ik_dd["v_right_m_s"], 0.5, 0.001))
+    odo = robotmod.diff_drive_odometry(0.05, 0.3, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], 1.0)
     check("odometry straight 3 s: x = 1.5 m",
           abs_ok(odo["final_pose"][0], 1.5, 1e-9), str(odo["final_pose"]))
 
@@ -311,7 +320,7 @@ def main():
           solversmod.run_solver("collision_check", {"links": [{"a": [0, 0, 0], "b": [1, 0, 0], "radius_m": 0.05}],
                                                     "obstacles": [{"type": "sphere", "centre": [0.5, 0.12, 0], "radius_m": 0.1}]}, {})["n_collisions"] == 1)
     check("solver diff_drive_fk: 0.5 m",
-          abs_ok(solversmod.run_solver("diff_drive_fk", {"wheel_radius_m": 0.05, "track_m": 0.3, "v_left_m_s": 10, "v_right_m_s": 10, "pose": [0, 0, 0], "dt_s": 1.0}, {})["pose"][0], 0.5, 1e-9))
+          abs_ok(solversmod.run_solver("diff_drive_fk", {"wheel_radius_m": 0.05, "track_m": 0.3, "v_left_m_s": 0.5, "v_right_m_s": 0.5, "pose": [0, 0, 0], "dt_s": 1.0}, {})["pose"][0], 0.5, 1e-9))
     pid = solversmod.run_solver("pid_control", {**MOTOR, "setpoint_rad": 1.0, "kp": 2, "ki": 0.5, "kd": 1.5, "voltage_limit_V": 12, "dt_s": 0.001, "duration_s": 5.0}, {})
     check("solver pid_control: overshoot below 20%", pid["overshoot_percent"] < 20)
     try:

@@ -146,10 +146,19 @@ def main():
         s, got = req(base, "GET", f"/api/v1/projects/{pid}/model", token=alice)
         check("new project has empty model (version 0)",
               s == 200 and got["model"]["version"] == 0 and got["model"]["components"] == [], "")
+        # Audit regression: a fresh model carries version 0 (the
+        # frontend's not-yet-saved state). The old handler validated
+        # the client-supplied version before stamping the server one,
+        # so the first save of a real model failed with a 400.
+        fresh = box_model(); fresh["version"] = 0
         s, saved = req(base, "PUT", f"/api/v1/projects/{pid}/model", token=alice,
-                       body={"model": box_model(), "base_version": 0})
-        check("save box model → version 1",
-              s == 200 and saved["model"]["version"] == 1, f"HTTP {s}")
+                       body={"model": fresh, "base_version": 0})
+        check("first save of a fresh model (version 0) succeeds",
+              s == 200 and saved["model"]["version"] == 1, f"HTTP {s} " + str(saved)[:200])
+        s, saved = req(base, "PUT", f"/api/v1/projects/{pid}/model", token=alice,
+                       body={"model": box_model(), "base_version": 1})
+        check("save box model again (base 1) goes to version 2",
+              s == 200 and saved["model"]["version"] == 2, f"HTTP {s}")
         check("saved model reports volume 6000 + mass from steel density",
               s == 200 and saved["volumes"][0]["volume_mm3"] == 6000
               and abs(saved["volumes"][0]["mass_kg"] - 6000 / 1e9 * 7850) < 1e-9, "")
@@ -169,12 +178,47 @@ def main():
         bad_model = box_model()
         bad_model["components"][0]["params"]["length"] = 0
         s, _ = req(base, "PUT", f"/api/v1/projects/{pid}/model", token=alice,
-                   body={"model": bad_model, "base_version": 1})
+                   body={"model": bad_model, "base_version": 2})
         check("invalid model rejected with 400 (no save)",
               s == 400, f"HTTP {s}")
         s, got = req(base, "GET", f"/api/v1/projects/{pid}/model", token=alice)
         check("rejected save did not change the stored model",
-              got["model"]["version"] == 1, "")
+              got["model"]["version"] == 2, "")
+
+        # Audit regression: the Python-side base_version check used to
+        # run before an unconditional UPDATE, so two concurrent PUTs
+        # with the same base_version both passed and one edit was
+        # silently lost. The save is now atomic (version in the WHERE
+        # clause), so exactly one writer must win. Runs on its own
+        # project so the main project's version sequence is untouched.
+        s, race_proj = req(base, "POST", "/api/v1/projects", token=alice,
+                           body={"name": "Race test", "lab": "mechanical"})
+        race_pid = race_proj["project"]["id"]
+        s, _ = req(base, "PUT", f"/api/v1/projects/{race_pid}/model", token=alice,
+                   body={"model": box_model(), "base_version": 0})
+        check("race project saved at version 1", s == 200, f"HTTP {s}")
+        import threading as _threading
+        race_results = []
+
+        def _race_put(i):
+            m = box_model()
+            m["components"][0]["id"] = f"race-{i}"
+            st, _ = req(base, "PUT", f"/api/v1/projects/{race_pid}/model", token=alice,
+                        body={"model": m, "base_version": 1})
+            race_results.append(st)
+
+        threads = [_threading.Thread(target=_race_put, args=(i,)) for i in range(5)]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+        check("concurrent PUTs with the same base_version: one wins, rest 409",
+              sorted(race_results) == [200, 409, 409, 409, 409],
+              f"statuses {race_results}")
+        s, got = req(base, "GET", f"/api/v1/projects/{race_pid}/model", token=alice)
+        check("winning write is intact (version 2, one component)",
+              s == 200 and got["model"]["version"] == 2
+              and len(got["model"]["components"]) == 1, f"HTTP {s}")
 
         # --- validate endpoint (no save) ---
         s, val = req(base, "POST", f"/api/v1/projects/{pid}/model/validate", token=alice,
@@ -192,14 +236,14 @@ def main():
                 "material_id": "steel-1045"}
         s, added = req(base, "POST", f"/api/v1/projects/{pid}/model/components", token=alice,
                        body={"component": gear})
-        check("add gear component → version 2",
-              s == 201 and added["model"]["version"] == 2
+        check("add gear component → version 3",
+              s == 201 and added["model"]["version"] == 3
               and len(added["model"]["components"]) == 2, f"HTTP {s}")
         s, patched = req(base, "PATCH", f"/api/v1/projects/{pid}/model/components/g1",
                          token=alice, body={"params": {"module": 2, "teeth": 24, "thickness": 15, "bore_diameter": 10}})
         check("modify gear thickness 12→15",
               s == 200 and patched["component"]["params"]["thickness"] == 15
-              and patched["model"]["version"] == 3, f"HTTP {s}")
+              and patched["model"]["version"] == 4, f"HTTP {s}")
         s, _ = req(base, "PATCH", f"/api/v1/projects/{pid}/model/components/g1",
                    token=alice, body={"params": {"module": 2, "teeth": 3, "thickness": 15}})
         check("invalid patch (teeth 3) rejected 400",
@@ -208,8 +252,8 @@ def main():
                    token=bob, body={"params": {"module": 2, "teeth": 24, "thickness": 15}})
         check("Bob cannot patch Alice's component (404)", s == 404, f"HTTP {s}")
         s, deleted = req(base, "DELETE", f"/api/v1/projects/{pid}/model/components/g1", token=alice)
-        check("delete gear component → version 4",
-              s == 200 and deleted["model"]["version"] == 4
+        check("delete gear component → version 5",
+              s == 200 and deleted["model"]["version"] == 5
               and len(deleted["model"]["components"]) == 1, f"HTTP {s}")
         s, _ = req(base, "DELETE", f"/api/v1/projects/{pid}/model/components/nope", token=alice)
         check("delete unknown component → 404", s == 404, f"HTTP {s}")
@@ -231,7 +275,7 @@ def main():
         s, got = req(base, "GET", f"/api/v1/projects/{dup_id}/model", token=alice)
         check("duplicate project keeps the model + material",
               s == 200 and got["model"]["components"][0]["material_id"] == "alu-6061-t6"
-              and got["model"]["version"] == 5, "")
+              and got["model"]["version"] == 6, "")
 
         # --- export (JSON) ---
         s, exp = req(base, "GET", f"/api/v1/projects/{pid}/model/export?format=json", token=alice)

@@ -550,14 +550,17 @@ def diff_drive_fk(wheel_radius_m, track_m, v_left_m_s, v_right_m_s,
                   pose, dt_s):
     """Unicycle forward kinematics for one step.
 
-    pose = [x_m, y_m, theta_rad]. Returns the new pose and the
-    robot-frame velocities (v, omega)."""
+    pose = [x_m, y_m, theta_rad]. v_left_m_s / v_right_m_s are the
+    LINEAR wheel speeds in m/s (not rad/s — the earlier implementation
+    multiplied by the wheel radius, so a 0.5 m/s input came out as
+    0.05 m/s with a 0.05 m wheel; fixed in the pre-Stage 12 audit).
+    Returns the new pose and the robot-frame velocities (v, omega)."""
     r = float(wheel_radius_m); L = float(track_m)
     if r <= 0 or L <= 0 or dt_s <= 0:
         raise ValueError("wheel_radius_m, track_m and dt_s must be positive")
     vl = float(v_left_m_s); vr = float(v_right_m_s)
-    v = r * (vl + vr) / 2
-    omega = r * (vr - vl) / L
+    v = (vl + vr) / 2
+    omega = (vr - vl) / L
     x, y, th = pose
     th2 = th + omega * dt_s
     x2 = x + v * math.cos(th + omega * dt_s / 2) * dt_s
@@ -566,13 +569,16 @@ def diff_drive_fk(wheel_radius_m, track_m, v_left_m_s, v_right_m_s,
 
 
 def diff_drive_ik(wheel_radius_m, track_m, v_m_s, omega_rad_s):
-    """Wheel speeds for a desired (v, omega)."""
+    """Wheel speeds for a desired (v, omega). Returns LINEAR wheel
+    speeds in m/s (the earlier implementation divided by the wheel
+    radius and returned rad/s under an m/s name; fixed in the
+    pre-Stage 12 audit)."""
     r = float(wheel_radius_m); L = float(track_m)
     if r <= 0 or L <= 0:
         raise ValueError("wheel_radius_m and track_m must be positive")
     v = float(v_m_s); om = float(omega_rad_s)
-    return {"v_left_m_s": (v - om * L / 2) / r,
-            "v_right_m_s": (v + om * L / 2) / r}
+    return {"v_left_m_s": v - om * L / 2,
+            "v_right_m_s": v + om * L / 2}
 
 
 def diff_drive_odometry(wheel_radius_m, track_m, left_speeds, right_speeds,

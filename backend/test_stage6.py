@@ -133,6 +133,16 @@ def main():
         check("drag: Fd = 275.6 N, Re = 2.03e6",
               approx(r["drag_N"], 275.625) and approx(r["reynolds"], 2.03e6, 0.01),
               f"got {r['drag_N']}, {r['reynolds']}")
+        # Audit regression: a misspelt input used to be silently
+        # ignored and the solver computed with a default instead.
+        try:
+            solversmod.run_solver("gear_train",
+                                  {"z1": 20, "z2": 40, "module_mm": 2,
+                                   "input_speed_rpm": 1000, "input_torque_Nm": 10,
+                                   "efficiency": 0.95, "typo_param": 999}, {})
+            check("unknown solver input is rejected", False, "no error raised")
+        except ValueError as e:
+            check("unknown solver input is rejected", "typo_param" in str(e), str(e))
         r = solversmod.run_solver("free_fall",
                                   {"height_m": 10, "mass_kg": 1, "g_m_s2": 9.81}, {})
         check("free fall: t = 1.428 s, v = 14.0 m/s, KE = 98.1 J",
