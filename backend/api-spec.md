@@ -140,6 +140,32 @@ extrude/revolve/shaft/pipe/beam/bolt/nut/spring/motor/enclosure,
 estimates for rounded_box/gear/bearing/piston, and null for
 booleans/imported meshes (measured from the mesh in the browser).
 
+## Simulation jobs (Stage 6)
+
+- `GET /api/v1/solvers` (public) — the solver registry: label,
+  method, engine, status (available / browser /
+  not_implemented), inputs, outputs, required material
+  properties, assumptions.
+- `POST /api/v1/simulations` (auth) — body `{project_id,
+  solver, inputs}`. The project must belong to the caller
+  (404 otherwise). Analytical solvers run synchronously and
+  the job is stored `completed` with `{method, engine,
+  assumptions, values}` — or `failed` with `{"error": ...}`
+  when an input or a required material property is missing.
+  `rigid_body` jobs are stored `queued` for the browser.
+  `fea` / `cfd` jobs are stored `not_implemented` with no
+  results and an explanatory note. Unknown solver → 400.
+- `GET /api/v1/simulations?project_id=` (auth, owner) — list.
+- `GET /api/v1/simulations/{id}` (auth, owner).
+- `POST /api/v1/simulations/{id}/results` (auth, owner) —
+  body `{results}` with a `summary`; only for queued/running
+  jobs (the browser posts rigid-body runs). A second post
+  returns 400.
+- `DELETE /api/v1/simulations/{id}` (auth, owner).
+
+All results are labelled with their method; analytical
+results are never FEA. See `docs/SOLVERS.md`.
+
 ## Public data (read-only)
 
 `GET /api/v1/materials`, `GET /api/v1/components` — served from

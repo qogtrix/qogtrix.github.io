@@ -367,3 +367,50 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   kernel, not B-rep; fillets/chamfers on boxes only; simplified
   gear teeth; partial revolves built as full revolves; no
   STEP/3MF/FCStd; no React Three Fiber (no build step).
+
+---
+
+# Stage 6 — Physics and Simulation Foundation (19 Nov 2026)
+
+## 23. What changed
+
+- **Analytical solvers:** `backend/solvers.py` — pure-stdlib
+  closed-form solvers (cantilever, simply supported beam,
+  axial bar, torsion, 1-D conduction, lumped thermal,
+  drag/lift, free fall) with a `SOLVER_REGISTRY` (label,
+  method, engine, status, inputs, outputs, required material
+  properties, assumptions). Missing material properties are
+  errors, never substitutions. FEA/CFD are registry entries
+  with status `not_implemented` and no implementation.
+- **Job system:** the Stage 1 `simulations` table is now
+  used for real. `backend/app.py` gains `GET /api/v1/solvers`
+  and the simulation job API (create/run, list, get, delete,
+  post browser results), all owner-scoped. Analytical jobs
+  run synchronously and store method + assumptions + values;
+  rigid-body jobs queue for the browser; FEA/CFD jobs are
+  recorded `not_implemented` with no results.
+- **Rigid-body engine:** Rapier 0.14.0 (MIT/Apache) via
+  jsDelivr CDN, validated headlessly 9/9 against analytical
+  references (`backend/test_stage6_rapier.mjs`).
+- **Simulation workspace:** `simulate.html` +
+  `assets/js/simulate.js` — three tabs: Rigid-body (Rapier)
+  with project/model loading, per-body type, gravity,
+  restitution, friction, impulse/continuous forces, Rapier
+  spring joints, fixed/revolute joints, live state table,
+  height + energy charts, results saving to a job;
+  Analytical solvers with a per-solver input form (section
+  builder in mm, material select from Stage 4) and results
+  with units, method badge, assumptions and a safety-factor
+  verdict; Simulation jobs list with view/delete.
+- **Docs:** `docs/SOLVERS.md` (architecture + FEA/CFD
+  investigation), `docs/VALIDATION_STAGE6.md` (benchmarks
+  with measured errors), `docs/TEST_RESULTS_STAGE6.md`.
+- **Tests:** `backend/test_stage6.py` 29/29;
+  `backend/test_stage6_rapier.mjs` 9/9. Stages 2–5 suites
+  still green (their health assertions accept stage 6).
+- **Limits, stated in the UI and docs:** no FEA/CFD
+  installed (checked 19 Nov 2026); analytical results are
+  labelled analytical, never FEA; collision shapes are
+  bounding boxes (ball for spheres); KE chart is
+  translational only; electrical simulation is still the
+  Stage 1 stub.

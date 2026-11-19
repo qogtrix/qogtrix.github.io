@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlparse
 import auth as authmod
 import db as dbmod
 import model as modelmod
+import solvers as solversmod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -190,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 5,
+                return self._send(200, {"status": "ok", "stage": 6,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -215,6 +216,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_model(path, method, query)
             if path.startswith("/api/v1/projects"):
                 return self._route_projects(path, method, query)
+            if path == "/api/v1/solvers" and method == "GET":
+                return self._send(200, {"solvers": solversmod.SOLVER_REGISTRY})
+            if path.startswith("/api/v1/simulations"):
+                return self._route_simulations(path, method, query)
             if path.startswith("/api/v1/simulate/"):
                 return self._send(501, {"status": "not_implemented",
                                         "stage": 3,
@@ -747,6 +752,151 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(404, "Not found")
         raise ApiError(404, "Not found")
 
+    # -- simulation jobs (Stage 6) --------------------------------------
+    def _material_props(self, material_id):
+        props = {}
+        try:
+            for r in self.conn.execute(
+                    "SELECT property_key, value_num FROM material_properties"
+                    " WHERE material_id=?", (material_id,)):
+                props[r["property_key"]] = r["value_num"]
+        except Exception:
+            pass
+        return props
+
+    def _own_simulation(self, sid, user_id):
+        row = self.conn.execute(
+            "SELECT * FROM simulations WHERE id=? AND owner_id=?",
+            (sid, user_id)).fetchone()
+        if not row:
+            raise ApiError(404, "Simulation not found")
+        return row
+
+    @staticmethod
+    def _sim_public(row):
+        return {"id": row["id"], "project_id": row["project_id"],
+                "solver": row["solver"],
+                "solver_version": row["solver_version"],
+                "status": row["status"],
+                "inputs": json.loads(row["inputs"]) if row["inputs"] else {},
+                "results": json.loads(row["results"]) if row["results"] else None,
+                "created_at": row["created_at"]}
+
+    def _route_simulations(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        user = self._current_user()
+        # POST /api/v1/simulations — create + run (analytical solvers
+        # run synchronously; rigid_body waits for the browser; fea/cfd
+        # are recorded as not_implemented, never faked).
+        if len(parts) == 3 and method == "POST":
+            data = self._read_json()
+            solver = str(data.get("solver", "")).strip()
+            if solver not in solversmod.SOLVER_REGISTRY:
+                raise ApiError(400, "Unknown solver: " + solver)
+            meta = solversmod.SOLVER_REGISTRY[solver]
+            pid = str(data.get("project_id", "")).strip()
+            if not pid:
+                raise ApiError(400, "project_id is required")
+            self._own_project(pid, user["id"])
+            inputs = data.get("inputs") or {}
+            if not isinstance(inputs, dict):
+                raise ApiError(400, "inputs must be an object")
+            sid = dbmod.new_id("sim")
+            if meta["status"] == "not_implemented":
+                self.conn.execute(
+                    "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                    " solver_version, status, inputs, results, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, pid, user["id"], solver, meta["engine"],
+                     "not_implemented", json.dumps(inputs), None, now_iso()))
+                self.conn.commit()
+                row = self._own_simulation(sid, user["id"])
+                return self._send(201, {**self._sim_public(row),
+                                        "note": meta["assumptions"][0]})
+            if meta["status"] == "browser":
+                self.conn.execute(
+                    "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                    " solver_version, status, inputs, results, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, pid, user["id"], solver, meta["engine"],
+                     "queued", json.dumps(inputs), None, now_iso()))
+                self.conn.commit()
+                return self._send(201, self._sim_public(
+                    self._own_simulation(sid, user["id"])))
+            # Analytical solver: run now, synchronously.
+            material_id = inputs.get("material_id")
+            props = self._material_props(material_id) if material_id else {}
+            try:
+                results = solversmod.run_solver(solver, inputs, props)
+            except ValueError as e:
+                self.conn.execute(
+                    "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                    " solver_version, status, inputs, results, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, pid, user["id"], solver, meta["engine"],
+                     "failed", json.dumps(inputs),
+                     json.dumps({"error": str(e)}), now_iso()))
+                self.conn.commit()
+                return self._send(200, {**self._sim_public(
+                    self._own_simulation(sid, user["id"])),
+                    "note": "Solver failed: " + str(e)})
+            self.conn.execute(
+                "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                " solver_version, status, inputs, results, created_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (sid, pid, user["id"], solver, meta["engine"],
+                 "completed", json.dumps(inputs),
+                 json.dumps({"method": meta["method"],
+                             "engine": meta["engine"],
+                             "assumptions": meta["assumptions"],
+                             "values": results}), now_iso()))
+            self.conn.commit()
+            return self._send(201, self._sim_public(
+                self._own_simulation(sid, user["id"])))
+        # GET /api/v1/simulations?project_id=
+        if len(parts) == 3 and method == "GET":
+            pid = (query.get("project_id", [""])[0] or "").strip()
+            if pid:
+                self._own_project(pid, user["id"])
+                rows = self.conn.execute(
+                    "SELECT * FROM simulations WHERE owner_id=? AND project_id=?"
+                    " ORDER BY created_at DESC", (user["id"], pid)).fetchall()
+            else:
+                rows = self.conn.execute(
+                    "SELECT * FROM simulations WHERE owner_id=?"
+                    " ORDER BY created_at DESC", (user["id"],)).fetchall()
+            return self._send(200, {"simulations": [self._sim_public(r) for r in rows]})
+        # GET / DELETE /api/v1/simulations/<id>
+        if len(parts) == 4:
+            sid = parts[3]
+            row = self._own_simulation(sid, user["id"])
+            if method == "GET":
+                return self._send(200, self._sim_public(row))
+            if method == "DELETE":
+                self.conn.execute("DELETE FROM simulations WHERE id=?", (sid,))
+                self.conn.commit()
+                return self._send(200, {"ok": True})
+            raise ApiError(404, "Not found")
+        # POST /api/v1/simulations/<id>/results — browser posts
+        # rigid-body results for a queued job.
+        if len(parts) == 5 and parts[4] == "results" and method == "POST":
+            sid = parts[3]
+            row = self._own_simulation(sid, user["id"])
+            if row["status"] not in ("queued", "running"):
+                raise ApiError(400, "This simulation is already "
+                                    f"{row['status']}; results cannot be posted")
+            data = self._read_json()
+            results = data.get("results")
+            if not isinstance(results, dict) or "summary" not in results:
+                raise ApiError(400, "results must be an object with a summary")
+            self.conn.execute(
+                "UPDATE simulations SET status='completed', results=?"
+                " WHERE id=?", (json.dumps(results), sid))
+            self.conn.commit()
+            return self._send(200, self._sim_public(
+                self._own_simulation(sid, user["id"])))
+        raise ApiError(404, "Not found")
+
     # -- project routes ------------------------------------------------
     def _route_projects(self, path, method, query):
         user = self._current_user()
@@ -996,7 +1146,7 @@ def main():
     dbmod.init_db(conn)
     conn.close()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AI Engineering Laboratory API — Stage 5")
+    print(f"AI Engineering Laboratory API — Stage 6")
     print(f"Listening on http://127.0.0.1:{port}  (health: /health)")
     print("Set AIELAB_SECRET in production; AIELAB_DB to change the database file.")
     try:

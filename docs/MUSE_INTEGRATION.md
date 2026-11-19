@@ -107,3 +107,34 @@ Rules: only the agent owner's own projects (agent tokens are
 owner-scoped); never invent a dimension or a volume — read the
 schema and the validate response; say "not on record" for a
 volume the API returns as null (booleans, imported meshes).
+
+
+---
+
+## Simulation (Stage 6) — structured tools for Muse
+
+- **Discover solvers:** `GET /api/v1/solvers` — read the
+  registry first; it says which solvers exist, what they
+  need, and which are `not_implemented`.
+- **Run an analytical solver:** `POST /api/v1/simulations`
+  with `{project_id, solver, inputs}`. Inputs are SI units
+  (metres, newtons, pascals). Sections are
+  `{type: "rectangle"|"circle"|"ibeam"|"box", ...dims in m}`.
+  `material_id` must be a Stage 4 material that has the
+  solver's required properties on record — if the job comes
+  back `failed`, read its `error` and tell the user which
+  property is missing instead of guessing one.
+- **Read results:** `GET /api/v1/simulations/{id}` — values
+  carry `method: "analytical"` and the assumptions. Report
+  the safety factor with its verdict (SF < 1 fails; 1–1.5
+  marginal; ≥ 1.5 OK by the usual rule of thumb, not a code
+  check). Never call an analytical result an FEA result.
+- **Rigid-body runs:** create a `rigid_body` job (it stays
+  `queued`), then run Rapier in the browser workspace and
+  post `{summary, series}` to the job's `/results` endpoint.
+- **Identify problems:** a safety factor below 1, a
+  deflection larger than the design allows, or a rigid-body
+  run that shows a collision or a fall — report the numbers
+  and suggest the concrete change (bigger section, stronger
+  material, shorter span, add a support). Never invent a
+  solver result the API did not return.

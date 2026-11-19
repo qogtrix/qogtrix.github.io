@@ -224,3 +224,52 @@ actually built and checked. Anything labelled "Stage 2" is not done.
       partial revolves built as full revolves
 - [ ] No simulation in the modeller (Stage 1 rule still holds)
 - [ ] Constraint solving (mates that stay solved) is future work
+
+---
+
+# Stage 6 — Physics and Simulation Foundation (19 Nov 2026)
+
+## Completed in Stage 6
+
+- [x] Physics foundation: gravity, mass (from mesh volume x
+      density), density, velocity, acceleration, force,
+      momentum, energy (translational KE), collision
+      detection, friction, angular velocity, torque,
+      rotational inertia (via Rapier)
+- [x] Rigid-body simulation: static / dynamic / kinematic
+      bodies, collision shapes, fixed + revolute joints,
+      Rapier spring joints, damping, contact counting,
+      rotational motion — real Rapier 0.14.0, validated 9/9
+- [x] Structural analysis foundation: analytical beam
+      (cantilever, simply supported), axial, torsion,
+      stress/strain/displacement, safety factor — labelled
+      ANALYTICAL, not FEA
+- [x] Thermal: steady 1-D conduction + lumped-capacitance
+      transient, using Stage 4 k / density / cp
+- [x] Fluid preparation: analytical drag/lift, Reynolds
+      number; OpenFOAM investigated and documented as not
+      installed
+- [x] Material integration: solvers read Stage 4 properties;
+      missing properties are named errors, never substitutions
+- [x] Simulation workspace: select objects, apply forces,
+      set gravity, choose duration, run/pause/step, numerical
+      results, motion visualisation, error inspection
+- [x] Results: force/velocity data, height + energy charts,
+      units and assumptions on every result
+- [x] Solver architecture: registry + job system, backend
+      jobs for analytical work, browser engine for interactive
+      rigid-body work
+- [x] Validation: free fall, collision, spring-mass, rotating
+      body, cantilever beam, heat conduction — all against
+      references with documented errors
+
+## Honest limits
+
+- [ ] No FEA (CalculiX / Code_Aster not installed) — jobs
+      recorded as not_implemented, never faked
+- [ ] No CFD (OpenFOAM not installed) — analytical drag/lift
+      only, labelled as such
+- [ ] No stress/strain field visualisation (needs FEA)
+- [ ] Electrical simulation still a Stage 1 stub (501)
+- [ ] Collision shapes are bounding boxes (ball for spheres)
+- [ ] KE chart is translational only

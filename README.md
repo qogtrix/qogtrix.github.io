@@ -148,3 +148,27 @@ docs/*.md
   `backend/test_stage5_math.js` **29/29**,
   `backend/test_stage5_kernel.mjs` **28/28** (headless, real
   geometry + real CSG volumes). See `docs/TEST_RESULTS_STAGE5.md`.
+
+## Stage 6 — Physics and Simulation Foundation (19 Nov 2026)
+
+- **Rigid-body dynamics** (`simulate.html`): real Rapier
+  0.14.0 engine in the browser — dynamic/static/kinematic
+  bodies from your model, gravity, friction, restitution,
+  forces (impulse/continuous), Rapier spring joints,
+  fixed/revolute joints, live state, height + energy charts,
+  results saved to a backend job. Validated headlessly 9/9
+  against analytical references.
+- **Analytical solvers** (backend, SI units): cantilever and
+  simply-supported beams, axial bar, torsion, 1-D conduction,
+  lumped thermal, drag/lift, free fall — all labelled
+  ANALYTICAL with their assumptions; missing material
+  properties are named errors, never substitutions.
+- **Job system:** `GET /api/v1/solvers` + the simulations
+  API (create/run/list/get/delete/post-results), owner-scoped.
+- **Honest limits:** no FEA (CalculiX/Code_Aster) and no CFD
+  (OpenFOAM) are installed — those jobs are recorded as
+  `not_implemented`, never faked. See `docs/SOLVERS.md` and
+  `docs/VALIDATION_STAGE6.md`.
+- Tests: `backend/test_stage6.py` **29/29**,
+  `backend/test_stage6_rapier.mjs` **9/9**.
+  See `docs/TEST_RESULTS_STAGE6.md`.

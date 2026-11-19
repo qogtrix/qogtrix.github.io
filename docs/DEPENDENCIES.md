@@ -55,3 +55,13 @@ No solver library is listed yet — solver choice is a Stage 2 decision
 - **three-mesh-bvh 0.7.0 (MIT)** — BVH acceleration for
   three-bvh-csg. Also from jsDelivr CDN.
 - No other new dependencies. No paid APIs, no build step.
+
+## Stage 6 additions
+
+- **@dimforge/rapier3d-compat 0.14.0 (MIT/Apache)** — real
+  rigid-body physics engine (WASM), loaded from jsDelivr CDN
+  in `simulate.html`'s import map. Validated headlessly in
+  `backend/test_stage6_rapier.mjs` (9/9).
+- No other new dependencies. Analytical solvers are pure
+  Python stdlib (`backend/solvers.py`). No FEA/CFD solver is
+  installed (checked 19 Nov 2026).

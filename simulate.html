@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Workspace — AI Engineering Laboratory</title>
+<meta name="description" content="Physics and simulation workspace: Rapier rigid-body dynamics, analytical beam/thermal/fluid solvers, validation benchmarks.">
+<link rel="stylesheet" href="assets/css/style.css">
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.0/build/index.module.js",
+  "three-bvh-csg":"https://cdn.jsdelivr.net/npm/three-bvh-csg@0.0.16/build/index.module.js",
+  "@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
+}}
+</script>
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 6 · Simulation</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Library</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Rapier 0.14.0 (MIT/Apache) · Analytical solvers · No FEA/CFD installed.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">Simulation Workspace</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 6</span>
+  </header>
+  <main class="content">
+    <h1>Simulation Workspace</h1>
+    <p>Two honest kinds of simulation live here. <strong>Rigid-body dynamics</strong> runs the real Rapier engine in your browser (validated against analytical benchmarks — see <a href="docs/VALIDATION_STAGE6.md">docs/VALIDATION_STAGE6.md</a>). <strong>Analytical solvers</strong> run closed-form engineering formulas on the backend and are labelled as analytical — they are not finite-element results. FEA and CFD are <strong>not installed</strong> in this environment, so the job system records those jobs as not implemented instead of faking results.</p>
+
+    <div class="model-toolbar">
+      <label class="small muted" for="project-select">Project</label>
+      <select id="project-select"><option value="">— choose a project —</option></select>
+      <button class="secondary" id="load-model">Load model</button>
+      <span class="model-status" id="sim-status">Choose a project and load its model.</span>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="rigid" role="tab">Rigid-body (Rapier)</button>
+      <button class="tab" data-tab="analytical" role="tab">Analytical solvers</button>
+      <button class="tab" data-tab="jobs" role="tab">Simulation jobs</button>
+    </div>
+
+    <section id="tab-rigid">
+      <div class="model-layout">
+        <aside class="model-panel" aria-label="Simulation setup">
+          <h3>Physics</h3>
+          <div class="field-row"><label>Gravity (m/s², down)</label><input type="number" id="gravity" value="9.81" step="0.1"></div>
+          <div class="field-row"><label>Duration (s)</label><input type="number" id="duration" value="5" step="0.5" min="0.5"></div>
+          <div class="field-row"><label>Ground floor</label><select id="ground"><option value="on">On (y = 0)</option><option value="off">Off (free fall)</option></select></div>
+          <div class="field-row"><label>Restitution (bounciness 0–1)</label><input type="number" id="restitution" value="0.3" step="0.1" min="0" max="1"></div>
+          <div class="field-row"><label>Friction (0–1)</label><input type="number" id="friction" value="0.5" step="0.1" min="0" max="1"></div>
+          <div class="btn-row">
+            <button class="primary" id="run-sim">Run</button>
+            <button class="secondary" id="pause-sim" disabled>Pause</button>
+            <button class="secondary" id="step-sim" disabled>Step</button>
+            <button class="secondary" id="reset-sim">Reset</button>
+          </div>
+          <p class="small muted">Fixed timestep 1/60 s. Bodies are the model's top-level components; children move rigidly with their parent. Collision shapes are bounding boxes (a ball for spheres) — an approximation, stated in the results. Mass comes from the component's mesh volume × its Stage 4 material density (1000 kg/m³ when no material is assigned).</p>
+          <h3>Bodies</h3>
+          <div id="bodies-list"><p class="muted">Load a model to see its bodies.</p></div>
+          <h3>Apply a force</h3>
+          <div class="field-row"><label>Body</label><select id="force-body"></select></div>
+          <div class="field-row"><label>Force (N) — x, y, z</label><input id="force-vec" value="0, 0, 0"></div>
+          <div class="field-row"><label>Mode</label><select id="force-mode"><option value="impulse">Impulse (once)</option><option value="continuous">Continuous</option></select></div>
+          <button class="secondary" id="apply-force">Apply force</button>
+          <h3>Spring (Rapier spring joint)</h3>
+          <div class="field-row"><label>Body</label><select id="spring-body"></select></div>
+          <div class="field-row"><label>Anchor (m) — x, y, z</label><input id="spring-anchor" value="0, 2, 0"></div>
+          <div class="field-row"><label>Stiffness k (N/m)</label><input type="number" id="spring-k" value="40"></div>
+          <div class="field-row"><label>Damping (N·s/m)</label><input type="number" id="spring-c" value="1"></div>
+          <button class="secondary" id="add-spring">Add spring</button>
+          <h3>Joint between two bodies</h3>
+          <div class="field-row"><label>Body A</label><select id="joint-a"></select></div>
+          <div class="field-row"><label>Body B</label><select id="joint-b"></select></div>
+          <div class="field-row"><label>Type</label><select id="joint-type"><option value="fixed">Fixed (weld)</option><option value="revolute">Revolute (hinge, Z axis)</option></select></div>
+          <button class="secondary" id="add-joint">Add joint</button>
+        </aside>
+        <div>
+          <div class="viewer model-viewer" id="viewer"><div class="viewer-stats" id="viewer-stats">Load a model to start a simulation.</div></div>
+          <div class="charts">
+            <div class="chart-box"><h4>Height of first dynamic body (m)</h4><canvas id="chart-height" width="520" height="140"></canvas></div>
+            <div class="chart-box"><h4>Total kinetic energy (J)</h4><canvas id="chart-energy" width="520" height="140"></canvas></div>
+          </div>
+        </div>
+        <aside class="model-panel" aria-label="Live results">
+          <h3>Live results</h3>
+          <div id="live-results"><p class="muted">Nothing running yet.</p></div>
+          <h3>Summary</h3>
+          <div id="sim-summary"><p class="muted">Run a simulation to see its summary.</p></div>
+          <button class="secondary" id="save-results" disabled>Save results to a job</button>
+          <p class="small muted">Saving creates a rigid-body job on the backend with the time series and summary, so the run is on record.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="tab-analytical" hidden>
+      <div class="notice info">Analytical solvers use closed-form formulas and the material properties on record in Stage 4. A missing property stops the run with a named error — nothing is guessed. Results are labelled <strong>analytical</strong>, not FEA.</div>
+      <div class="model-toolbar">
+        <label class="small muted" for="solver-select">Solver</label>
+        <select id="solver-select"></select>
+        <button class="primary" id="run-analytical">Run solver</button>
+      </div>
+      <div class="model-layout" style="grid-template-columns:300px 1fr">
+        <aside class="model-panel"><h3>Inputs</h3><div id="solver-inputs"></div><div id="solver-meta" class="small muted"></div></aside>
+        <div class="model-panel"><h3>Results</h3><div id="analytical-results"><p class="muted">Choose a solver, fill the inputs, and run it.</p></div></div>
+      </div>
+    </section>
+
+    <section id="tab-jobs" hidden>
+      <div class="model-panel"><h3>Simulation jobs for this project</h3><div id="jobs-list"><p class="muted">Choose a project first.</p></div></div>
+    </section>
+    <p class="small muted">Rapier 0.14.0 (MIT/Apache) loaded from jsDelivr CDN. WebGL is required for the 3D view; the analytical solvers work without it.</p>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 6 Simulation · Rapier (MIT/Apache) · Analytical solvers (Python)</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/model-math.js"></script>
+<script>
+  setTimeout(function () {
+    var v = document.getElementById('viewer');
+    if (v && !v.querySelector('canvas')) {
+      v.innerHTML = '<div class="viewer-fallback"><b>The simulation workspace could not be loaded.</b><br>Three.js or Rapier did not load from the CDN. Check your internet connection and reload.</div>';
+    }
+  }, 10000);
+</script>
+<script type="module" src="assets/js/simulate.js"></script>
+</body>
+</html>
