@@ -100,6 +100,46 @@ Missing properties are `null` and listed in `missing_properties`.
   `{material_id}`; appends to `payload.materials`.
   `DELETE /api/v1/projects/{id}/materials/{material_id}` (owner).
 
+## 3D models (Stage 5)
+
+Models live in a project's payload (`payload.model`).
+All model endpoints are owner-only (session or agent token);
+another user's project returns 404, unauthenticated returns 401.
+Saves are version-aware: send `base_version`; a stale base
+returns 409.
+
+- `GET /api/v1/model/schema` (public) — the model format:
+  units, component types, primitive/component kinds, boolean
+  ops, component fields, notes.
+- `GET /api/v1/projects/{id}/model` — the stored model
+  `{version, units, components}` plus per-component analytic
+  volumes and masses (`volumes: [{id, volume_mm3, exact, note,
+  mass_kg}]`).
+- `PUT /api/v1/projects/{id}/model` — body `{model, base_version?}`;
+  validates the whole model (same rules as
+  `assets/js/model-math.js`), bumps the version, returns the
+  saved model + volumes. 400 on invalid, 409 on stale base.
+- `POST /api/v1/projects/{id}/model/validate` — body `{model}`;
+  returns `{valid, errors, volumes}` without saving.
+- `POST /api/v1/projects/{id}/model/components` — body
+  `{component}`; validates, appends, bumps the version. 201.
+- `PATCH /api/v1/projects/{id}/model/components/{cid}` — merge
+  fields (name, kind, type, params, position, rotation, scale,
+  material_id, color, visible, parent_id, tolerance_mm,
+  constraints); revalidates the whole model; bumps the version.
+- `DELETE /api/v1/projects/{id}/model/components/{cid}` — 400 if
+  another component still references it (parent or boolean
+  operand).
+- `GET /api/v1/projects/{id}/model/export?format=json` — model +
+  volumes. Other formats return 400: STL/OBJ/GLB export runs in
+  the browser workspace (three.js exporters); STEP/3MF/FCStd are
+  not supported by the mesh kernel.
+
+Analytic volumes are exact for box/cylinder/sphere/cone/torus/
+extrude/revolve/shaft/pipe/beam/bolt/nut/spring/motor/enclosure,
+estimates for rounded_box/gear/bearing/piston, and null for
+booleans/imported meshes (measured from the mesh in the browser).
+
 ## Public data (read-only)
 
 `GET /api/v1/materials`, `GET /api/v1/components` — served from

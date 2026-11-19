@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "housing",
+      "name": "Gearbox housing",
+      "type": "component",
+      "kind": "enclosure",
+      "params": {
+        "length": 140,
+        "width": 100,
+        "height": 80,
+        "wall_thickness": 5
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "alu-6061-t6",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "shaft-in",
+      "name": "Input shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          12,
+          16,
+          12
+        ],
+        "lengths": [
+          30,
+          50,
+          30
+        ]
+      },
+      "position": [
+        -25,
+        30,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "gear-in",
+      "name": "Input gear 18T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 18,
+        "thickness": 10,
+        "bore_diameter": 12,
+        "pressure_angle": 20
+      },
+      "position": [
+        -25,
+        30,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": "shaft-in",
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "shaft-out",
+      "name": "Output shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          16,
+          20,
+          16
+        ],
+        "lengths": [
+          30,
+          50,
+          30
+        ]
+      },
+      "position": [
+        25,
+        30,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "gear-out",
+      "name": "Output gear 36T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 36,
+        "thickness": 10,
+        "bore_diameter": 16,
+        "pressure_angle": 20
+      },
+      "position": [
+        25,
+        30,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": "shaft-out",
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-1",
+      "name": "Housing bolt M8",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 8,
+        "length": 20,
+        "head_height": 5
+      },
+      "position": [
+        -60,
+        0,
+        -40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-304",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-2",
+      "name": "Housing bolt M8",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 8,
+        "length": 20,
+        "head_height": 5
+      },
+      "position": [
+        60,
+        0,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-304",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

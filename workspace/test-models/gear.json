@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "gear-1",
+      "name": "Spur gear 24T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 24,
+        "thickness": 12,
+        "bore_diameter": 10,
+        "pressure_angle": 20
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

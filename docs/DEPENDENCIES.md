@@ -45,3 +45,13 @@ No solver library is listed yet — solver choice is a Stage 2 decision
 - `data/*.json` are plain data files; no hidden network calls are made
   by `assets/js/*.js` except fetching those local JSON files and the
   Three.js CDN.
+
+## Stage 5 additions
+
+- **three-bvh-csg 0.0.16 (MIT)** — real CSG booleans on triangle
+  meshes (union / subtract / intersect) and mesh volume
+  (`computeMeshVolume`). Peer dependency: three-mesh-bvh.
+  Loaded from jsDelivr CDN in `workspace.html`'s import map.
+- **three-mesh-bvh 0.7.0 (MIT)** — BVH acceleration for
+  three-bvh-csg. Also from jsDelivr CDN.
+- No other new dependencies. No paid APIs, no build step.

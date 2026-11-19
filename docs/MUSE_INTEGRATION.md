@@ -64,3 +64,46 @@ Rules: cite the `source` and `confidence` of any value you quote;
 say "not on record" for missing properties; never present the
 38-material sample as a complete database; cost is a relative
 1–5 index, not a price.
+
+
+---
+
+## Modelling (Stage 5) — structured tools for Muse
+
+The model API is the tool surface for creating and editing real
+3D models. It operates on actual model data (validated JSON),
+never on descriptions.
+
+- **Schema:** `GET /api/v1/model/schema` — kinds, params,
+  units, boolean ops, component fields. Read this first.
+- **Inspect:** `GET /api/v1/projects/{id}/model` — model +
+  analytic volumes and masses per component.
+- **Create geometry:** `POST /api/v1/projects/{id}/model/components`
+  with a component object (see `docs/MODELLING.md` for the
+  format). Dimensions are in mm.
+- **Modify dimensions:** `PATCH .../components/{cid}` with new
+  `params` (or position / rotation / material_id / parent_id).
+- **Add components:** same POST endpoint with a library kind
+  (`gear`, `shaft`, `bearing`, `bolt`, `nut`, `spring`,
+  `piston`, `pipe`, `beam`, `motor`, `enclosure`).
+- **Assign materials:** `PATCH .../components/{cid}` with
+  `material_id` (a Stage 4 material id — look it up with the
+  materials search first).
+- **Assemble:** set `parent_id` on a component to make it a
+  child of another (e.g. a gear on its shaft); set `position`
+  and `rotation` (degrees) for placement.
+- **Booleans:** add a component of type `boolean`, kind
+  `boolean`, `params: {op: "subtract", operands: [idA, idB]}`.
+- **Check before saving:** `POST .../model/validate` returns
+  errors and volumes without writing anything.
+- **Save:** `PUT /api/v1/projects/{id}/model` with the full
+  model and `base_version` (the version you read). A 409 means
+  the model changed — re-read it and re-apply your change.
+- **Export:** `GET .../model/export?format=json`. STL/OBJ/GLB
+  export happens in the browser workspace; tell the user to use
+  Export there. Never claim STEP/3MF/FCStd export works.
+
+Rules: only the agent owner's own projects (agent tokens are
+owner-scoped); never invent a dimension or a volume — read the
+schema and the validate response; say "not on record" for a
+volume the API returns as null (booleans, imported meshes).

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "shaft-1",
+      "name": "Stepped shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          20,
+          30,
+          20
+        ],
+        "lengths": [
+          40,
+          60,
+          40
+        ]
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-1",
+      "name": "Bearing 6204",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 20,
+        "outer_diameter": 47,
+        "width": 14
+      },
+      "position": [
+        -30,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-304",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

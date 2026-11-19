@@ -330,3 +330,40 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
  README.md, index.html, projects.html, labs/materials.html,
  all navs)
 ```
+
+---
+
+# Stage 5 — 3D Modelling Workspace (19 Nov 2026)
+
+## 22. What changed
+
+- **Kernel:** `assets/js/model-kernel.js` — mesh-based CSG
+  (three-bvh-csg 0.0.16). Parametric primitives, extrusions,
+  revolves, 11 library components, real booleans, holes,
+  rounded/chamfered boxes, mesh volumes, STL/OBJ/GLB export,
+  STL/OBJ/GLB import. `assets/js/model-math.js` is the pure-JS
+  companion: units, analytic volumes, shared validation.
+- **Modeller UI:** `workspace.html` + `assets/js/modeller.js` —
+  viewport (orbit/pan/zoom, gizmos, selection, grid/axes,
+  perspective/ortho, 6 views, section, exploded, wireframe),
+  add-primitive/component panels, boolean/hole tools, inspector
+  (dimensions in the selected unit, position/rotation, material,
+  tolerance, parent, visibility, duplicate/delete), assembly
+  tree, project select, save/autosave, import/export. The old
+  Stage 1 conceptual presets are replaced by five real example
+  models (`workspace/test-models/`).
+- **Backend:** `backend/model.py` mirrors the JS validation and
+  analytic volumes; `backend/app.py` gains the model API
+  (`/api/v1/model/schema`, project model CRUD, component
+  add/patch/delete, validate, JSON export) with version-aware
+  saves (409 on a stale base_version) and the same owner-only
+  404 rules as projects. `do_PUT` was added to the HTTP handler
+  (it was missing — PUT previously returned 501).
+- **Tests:** `backend/test_stage5.py` (56/56), `backend/test_stage5_math.js`
+  (29/29), `backend/test_stage5_kernel.mjs` (28/28 headless,
+  real geometry + real CSG + real volumes; GLB skipped in Node,
+  needs the browser's FileReader).
+- **Limits, stated in the UI and in docs/MODELLING.md:** mesh
+  kernel, not B-rep; fillets/chamfers on boxes only; simplified
+  gear teeth; partial revolves built as full revolves; no
+  STEP/3MF/FCStd; no React Three Fiber (no build step).

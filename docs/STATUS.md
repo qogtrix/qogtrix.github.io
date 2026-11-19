@@ -182,3 +182,45 @@ actually built and checked. Anything labelled "Stage 2" is not done.
       pricing is stored.
 - [ ] No admin UI for adding materials yet — additions are made
       by appending to data/materials.json (documented).
+
+---
+
+# Stage 5 — 3D Modelling Workspace (19 Nov 2026)
+
+## Completed in Stage 5
+
+- [x] 3D viewport: orbit/zoom/pan, selection + highlighting,
+      grid + axes, perspective + orthographic, 6 view angles,
+      section view, exploded view, wireframe, fit view
+- [x] Geometry: box, cylinder, sphere, cone, torus, rounded box
+      (fillet), chamfered box, extrusion with holes, revolve
+- [x] Booleans: real CSG union/subtract/intersect (mesh volumes
+      verified: subtract really removes the tool volume)
+- [x] Holes: boolean subtraction of a cylinder tool
+- [x] Dimensional control: length/width/height/diameter/radius/
+      angles/thickness/position/tolerance; units mm/cm/m/inches
+- [x] Component library: gear, shaft, bearing, bolt, nut, spring,
+      piston, pipe, I-beam, motor, enclosure — all parametric
+- [x] Assembly: multi-component, positioning, rotation,
+      parent-child hierarchy, visibility controls, exploded view;
+      constraints stored (align/mate/lock — full constraint
+      solving is future work)
+- [x] Material integration: Stage 4 material per component,
+      mass from density, identity preserved in saved models
+- [x] Project integration: save, autosave, reopen, duplicate,
+      rename (existing), export, version-aware updates (409 on
+      stale base_version), owner-only access
+- [x] Import/export: STL, OBJ, GLB, JSON — real, tested
+- [x] AI preparation: model schema endpoint + project model API
+      (create/modify/assign/assemble/inspect/save/export)
+- [x] Tests: shaft, gear, gearbox, beam, multi-component models
+      created, saved, reopened, validated; 56/56 backend,
+      29/29 JS math, 28/28 headless kernel
+
+## Honest limits
+
+- [ ] Mesh kernel, not B-rep: no STEP/3MF/FCStd, no
+      arbitrary-edge fillets/chamfers, simplified gear teeth,
+      partial revolves built as full revolves
+- [ ] No simulation in the modeller (Stage 1 rule still holds)
+- [ ] Constraint solving (mates that stay solved) is future work

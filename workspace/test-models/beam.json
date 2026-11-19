@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "beam-1",
+      "name": "I-beam 3 m",
+      "type": "component",
+      "kind": "beam",
+      "params": {
+        "length": 3000,
+        "height": 200,
+        "flange_width": 100,
+        "flange_thickness": 10,
+        "web_thickness": 6
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "plate-1",
+      "name": "End plate",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 120,
+        "width": 10,
+        "height": 220
+      },
+      "position": [
+        -1505,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "plate-2",
+      "name": "End plate",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 120,
+        "width": 10,
+        "height": 220
+      },
+      "position": [
+        1505,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

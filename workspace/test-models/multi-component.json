@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "units": "mm",
+  "components": [
+    {
+      "id": "base",
+      "name": "Base plate",
+      "type": "primitive",
+      "kind": "box",
+      "params": {
+        "length": 200,
+        "width": 150,
+        "height": 10
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-s355",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "motor-1",
+      "name": "Drive motor",
+      "type": "component",
+      "kind": "motor",
+      "params": {
+        "diameter": 60,
+        "length": 90,
+        "shaft_diameter": 12,
+        "shaft_length": 30
+      },
+      "position": [
+        -60,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "alu-6061-t6",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "shaft-1",
+      "name": "Drive shaft",
+      "type": "component",
+      "kind": "shaft",
+      "params": {
+        "diameters": [
+          12,
+          16
+        ],
+        "lengths": [
+          40,
+          60
+        ]
+      },
+      "position": [
+        0,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "gear-1",
+      "name": "Drive gear 20T",
+      "type": "component",
+      "kind": "gear",
+      "params": {
+        "module": 2,
+        "teeth": 20,
+        "thickness": 12,
+        "bore_diameter": 12,
+        "pressure_angle": 20
+      },
+      "position": [
+        55,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-1045",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bearing-1",
+      "name": "Shaft bearing",
+      "type": "component",
+      "kind": "bearing",
+      "params": {
+        "bore_diameter": 16,
+        "outer_diameter": 35,
+        "width": 11
+      },
+      "position": [
+        30,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-304",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "pipe-1",
+      "name": "Coolant pipe",
+      "type": "component",
+      "kind": "pipe",
+      "params": {
+        "outer_diameter": 20,
+        "inner_diameter": 16,
+        "length": 120
+      },
+      "position": [
+        80,
+        20,
+        -50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "copper-c110",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    },
+    {
+      "id": "bolt-1",
+      "name": "Mounting bolt",
+      "type": "component",
+      "kind": "bolt",
+      "params": {
+        "diameter": 10,
+        "length": 25,
+        "head_height": 6
+      },
+      "position": [
+        -90,
+        5,
+        -65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "material_id": "steel-304",
+      "visible": true,
+      "parent_id": null,
+      "tolerance_mm": 0.1
+    }
+  ]
+}

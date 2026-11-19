@@ -127,3 +127,24 @@ docs/*.md
   Stage 3 suites still 34/34. See `docs/TEST_RESULTS_STAGE4.md`.
 - Add a material by appending one entry to
   `data/materials.json` — no code change needed.
+
+## Stage 5 — 3D Modelling Workspace (19 Nov 2026)
+
+- **Real parametric modeller** (`workspace.html`): primitives,
+  extrusions, revolves, 11 library components, real CSG booleans
+  (three-bvh-csg), holes, rounded/chamfered boxes, assemblies
+  with parent-child hierarchy, section + exploded views,
+  perspective/orthographic cameras, gizmos, selection.
+- **Materials:** Stage 4 material per component, mesh volume and
+  mass in the inspector.
+- **Saving:** into the user's project with version-aware updates
+  (409 on a stale base_version), autosave, duplicate, reopen.
+- **Import/export:** STL, OBJ, GLB, JSON (real). STEP/3MF/FCStd
+  are not supported by the mesh kernel — stated in the UI and
+  docs. See `docs/MODELLING.md` for the exact limits.
+- **AI tools:** `GET /api/v1/model/schema` + project model API
+  (create/modify/assign/assemble/inspect/save/export).
+- Tests: `backend/test_stage5.py` **56/56**,
+  `backend/test_stage5_math.js` **29/29**,
+  `backend/test_stage5_kernel.mjs` **28/28** (headless, real
+  geometry + real CSG volumes). See `docs/TEST_RESULTS_STAGE5.md`.

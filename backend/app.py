@@ -24,6 +24,7 @@ from urllib.parse import parse_qs, urlparse
 
 import auth as authmod
 import db as dbmod
+import model as modelmod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -172,6 +173,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._route()
 
+    def do_PUT(self):
+        self._route()
+
     def do_PATCH(self):
         self._route()
 
@@ -186,7 +190,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 4,
+                return self._send(200, {"status": "ok", "stage": 5,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -203,8 +207,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, data)
             if path.startswith("/api/v1/auth/"):
                 return self._route_auth(path, method)
+            if path == "/api/v1/model/schema" and method == "GET":
+                return self._send(200, {"schema": modelmod.MODEL_SCHEMA})
             if path.startswith("/api/v1/public/projects"):
                 return self._route_public_projects(path, method, query)
+            if "/model" in path and path.startswith("/api/v1/projects/"):
+                return self._route_model(path, method, query)
             if path.startswith("/api/v1/projects"):
                 return self._route_projects(path, method, query)
             if path.startswith("/api/v1/simulate/"):
@@ -589,6 +597,156 @@ class Handler(BaseHTTPRequestHandler):
             (sid, user_id, token_hash, now_iso(), expires))
         return token
 
+    # -- 3D model API (Stage 5) -----------------------------------------
+    def _material_ids(self):
+        try:
+            return {r["id"] for r in self.conn.execute("SELECT id FROM materials")}
+        except Exception:
+            return set()
+
+    def _model_of(self, row):
+        payload = json.loads(row["payload"]) if row["payload"] else {}
+        model = payload.get("model") or {}
+        return payload, {
+            "version": model.get("version", 0),
+            "units": model.get("units", "mm"),
+            "components": model.get("components", []),
+        }
+
+    def _save_model(self, pid, owner_id, payload, model):
+        payload["model"] = model
+        self.conn.execute(
+            "UPDATE projects SET payload=?, updated_at=? WHERE id=? AND owner_id=?",
+            (json.dumps(payload), now_iso(), pid, owner_id))
+        self.conn.commit()
+
+    def _model_volumes(self, model):
+        densities = {}
+        try:
+            for r in self.conn.execute(
+                    "SELECT m.id, p.value_num FROM materials m JOIN material_properties p"
+                    " ON p.material_id = m.id AND p.property_key = 'density_kg_m3'"):
+                densities[r["id"]] = r["value_num"]
+        except Exception:
+            pass
+        out = []
+        for c in model.get("components", []):
+            vol = modelmod.analytic_volume(c)
+            mass = modelmod.mass_kg(vol["value"], densities.get(c.get("material_id")))
+            out.append({"id": c.get("id"), "volume_mm3": vol["value"],
+                        "exact": vol["exact"], "note": vol["note"],
+                        "mass_kg": mass})
+        return out
+
+    def _route_model(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # /api/v1/projects/<pid>/model[/components[/<cid>]|/validate|/export]
+        if len(parts) < 5 or parts[4] != "model":
+            raise ApiError(404, "Not found")
+        user = self._current_user()
+        pid = parts[3]
+        row = self._own_project(pid, user["id"])
+        payload, model = self._model_of(row)
+        # GET /api/v1/projects/<pid>/model/export?format=json
+        if len(parts) == 6 and parts[5] == "export" and method == "GET":
+            fmt = (query.get("format", ["json"])[0] or "json").strip()
+            if fmt != "json":
+                raise ApiError(400, "Server-side export supports JSON only. "
+                                    "STL/OBJ/GLB export runs in the browser "
+                                    "workspace (three.js exporters).")
+            return self._send(200, {"project_id": pid, "model": model,
+                                    "volumes": self._model_volumes(model)})
+        # POST /api/v1/projects/<pid>/model/validate — no save.
+        if len(parts) == 6 and parts[5] == "validate" and method == "POST":
+            data = self._read_json()
+            candidate = data.get("model")
+            if not isinstance(candidate, dict):
+                raise ApiError(400, "Body must contain a model object")
+            errors = modelmod.validate_model(candidate, self._material_ids())
+            return self._send(200, {"valid": not errors, "errors": errors,
+                                    "volumes": self._model_volumes(candidate)
+                                    if not errors else []})
+        # GET / PUT /api/v1/projects/<pid>/model
+        if len(parts) == 5:
+            if method == "GET":
+                return self._send(200, {"project_id": pid, "model": model,
+                                        "volumes": self._model_volumes(model)})
+            if method == "PUT":
+                data = self._read_json()
+                candidate = data.get("model")
+                if not isinstance(candidate, dict):
+                    raise ApiError(400, "Body must contain a model object")
+                base_version = data.get("base_version")
+                if base_version is not None and base_version != model["version"]:
+                    raise ApiError(409, "This model was changed elsewhere "
+                                        f"(current version {model['version']}, "
+                                        f"you based your edit on {base_version}). "
+                                        "Reload the model and re-apply your change.")
+                errors = modelmod.validate_model(candidate, self._material_ids())
+                if errors:
+                    raise ApiError(400, "Invalid model: " + "; ".join(errors))
+                candidate["version"] = model["version"] + 1
+                self._save_model(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid, "model": candidate,
+                                        "volumes": self._model_volumes(candidate)})
+            raise ApiError(404, "Not found")
+        # POST /api/v1/projects/<pid>/model/components
+        if len(parts) == 6 and parts[5] == "components" and method == "POST":
+            data = self._read_json()
+            comp = data.get("component")
+            if not isinstance(comp, dict):
+                raise ApiError(400, "Body must contain a component object")
+            candidate = {"version": model["version"], "units": model["units"],
+                         "components": model["components"] + [comp]}
+            errors = modelmod.validate_model(candidate, self._material_ids())
+            if errors:
+                raise ApiError(400, "Invalid component: " + "; ".join(errors))
+            candidate["version"] = model["version"] + 1
+            self._save_model(pid, user["id"], payload, candidate)
+            return self._send(201, {"project_id": pid, "model": candidate,
+                                    "component": comp})
+        # PATCH / DELETE /api/v1/projects/<pid>/model/components/<cid>
+        if len(parts) == 7 and parts[5] == "components":
+            cid = parts[6]
+            comps = model["components"]
+            idx = next((i for i, c in enumerate(comps) if c.get("id") == cid), None)
+            if idx is None:
+                raise ApiError(404, "Component not found")
+            if method == "DELETE":
+                referenced = [c["id"] for c in comps
+                             if (c.get("parent_id") == cid)
+                             or (c.get("type") == "boolean"
+                                 and cid in (c.get("params") or {}).get("operands", []))]
+                if referenced:
+                    raise ApiError(400, "Cannot delete: still referenced by "
+                                        + ", ".join(referenced))
+                candidate = {"version": model["version"], "units": model["units"],
+                             "components": [c for c in comps if c.get("id") != cid]}
+                candidate["version"] = model["version"] + 1
+                self._save_model(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid, "model": candidate})
+            if method == "PATCH":
+                data = self._read_json()
+                updated = dict(comps[idx])
+                for key in ("name", "kind", "type", "params", "position",
+                            "rotation", "scale", "material_id", "color",
+                            "visible", "parent_id", "tolerance_mm", "constraints"):
+                    if key in data:
+                        updated[key] = data[key]
+                new_comps = list(comps)
+                new_comps[idx] = updated
+                candidate = {"version": model["version"], "units": model["units"],
+                             "components": new_comps}
+                errors = modelmod.validate_model(candidate, self._material_ids())
+                if errors:
+                    raise ApiError(400, "Invalid component: " + "; ".join(errors))
+                candidate["version"] = model["version"] + 1
+                self._save_model(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid, "model": candidate,
+                                        "component": updated})
+            raise ApiError(404, "Not found")
+        raise ApiError(404, "Not found")
+
     # -- project routes ------------------------------------------------
     def _route_projects(self, path, method, query):
         user = self._current_user()
@@ -838,7 +996,7 @@ def main():
     dbmod.init_db(conn)
     conn.close()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AI Engineering Laboratory API — Stage 4")
+    print(f"AI Engineering Laboratory API — Stage 5")
     print(f"Listening on http://127.0.0.1:{port}  (health: /health)")
     print("Set AIELAB_SECRET in production; AIELAB_DB to change the database file.")
     try:
