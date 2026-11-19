@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Workspace — AI Engineering Laboratory</title>
+<meta name="description" content="Three.js 3D workspace: conceptual geometry previews for the six laboratories. Not a simulation.">
+<link rel="stylesheet" href="assets/css/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 1 · Foundation</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="sidebar-foot">Hybrid approach · Open-source first · No paid APIs in Stage 1.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">3D Workspace</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 1</span>
+  </header>
+  <main class="content">
+    <h1>3D Workspace</h1>
+    <p>Drag to orbit, scroll to zoom, right-drag to pan. These are <strong>conceptual geometry previews</strong> rendered with Three.js — they show shape and layout, not engineering analysis. Vertex / triangle counts are read from the real geometry objects.</p>
+    <div class="notice info">No simulation runs here in Stage 1. A solver that produced stress, temperature or motion numbers would be Stage 2 work — this page deliberately does not do that.</div>
+    <div class="toolbar">
+      <label class="small muted" for="preset-select">Preset</label>
+      <select id="preset-select">
+        <option value="shaft">Shaft + bearing (Mechanical)</option>
+        <option value="frame">Beam + column frame (Structural)</option>
+        <option value="wing">Wing section (Aerospace)</option>
+        <option value="arm">Robot arm (Robotics)</option>
+        <option value="lattice">Crystal lattice (Materials)</option>
+        <option value="board">Circuit board (Electrical)</option>
+      </select>
+      <button class="secondary" id="toggle-wireframe">Wireframe: Off</button>
+      <button class="secondary" id="toggle-rotate">Auto-rotate: Off</button>
+      <button class="secondary" id="toggle-grid">Grid: On</button>
+      <button class="secondary" id="reset-view">Reset view</button>
+      <button class="secondary" id="export-shot">Export PNG</button>
+    </div>
+    <div class="viewer" id="viewer" data-preset="shaft">
+      <div class="viewer-stats" id="viewer-stats">Loading 3D workspace…</div>
+    </div>
+    <p class="small muted">Three.js 0.160.0 (MIT) loaded from jsDelivr CDN. If it cannot load, this area shows an error instead of a frozen canvas. WebGL is required.</p>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 1 Foundation · Three.js (MIT)</footer>
+</div>
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  window.THREE = THREE; window.OrbitControls = OrbitControls;
+  // Module scripts run before DOMContentLoaded, so workspace3d.js
+  // (registered below) will see THREE when that event fires naturally.
+</script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/workspace3d.js"></script>
+</body>
+</html>

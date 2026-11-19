@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aerospace Engineering — AI Engineering Laboratory</title>
+<meta name="description" content="Flight, lift and lightweight structures. Stage 1 foundation page.">
+<link rel="stylesheet" href="../assets/css/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 1 · Foundation</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="../index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="../workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="sidebar-foot">Hybrid approach · Open-source first · No paid APIs in Stage 1.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb"><a href="../index.html">Dashboard</a> / Aerospace Engineering</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 1</span>
+  </header>
+  <main class="content">
+    <section class="hero">
+      <div class="icon" style="font-size:2rem">✈</div>
+      <h1>Aerospace Engineering</h1>
+      <p>Flight, lift and lightweight structures.</p>
+      <p>Wings, airfoils, propulsion and lightweight structures. Stage 1: wing geometry preview and airfoil reference. Stage 2: lift/drag estimation and structural check.</p>
+    </section>
+
+    <div class="grid cols-2">
+      <div class="card"><h3>✓ Works in Stage 1</h3><ul><li>3D wing geometry preview</li><li>Airfoil + propeller references</li><li>Project workspace</li></ul></div>
+      <div class="card"><h3>Planned — Stage 2</h3><ul><li>Lift / drag estimation</li><li>Aero-structural check</li></ul><p class="small muted">These are not built yet. No button on this page pretends otherwise.</p></div>
+    </div>
+
+    <h2>3D preview — wing</h2>
+    <p>Conceptual geometry preview, rendered with Three.js. Not a model for analysis and not a simulation result.</p>
+    <div class="toolbar">
+      <select id="preset-select">
+        <option value="shaft">Shaft + bearing (Mechanical)</option>
+        <option value="frame">Beam + column frame (Structural)</option>
+        <option value="wing">Wing section (Aerospace)</option>
+        <option value="arm">Robot arm (Robotics)</option>
+        <option value="lattice">Crystal lattice (Materials)</option>
+        <option value="board">Circuit board (Electrical)</option>
+      </select>
+      <button class="secondary" id="toggle-wireframe">Wireframe: Off</button>
+      <button class="secondary" id="toggle-rotate">Auto-rotate: Off</button>
+      <button class="secondary" id="reset-view">Reset view</button>
+    </div>
+    <div class="viewer" id="viewer" data-preset="wing">
+      <div class="viewer-stats" id="viewer-stats">Loading 3D workspace…</div>
+    </div>
+
+    <h2>Component library — this laboratory</h2>
+    <div class="toolbar">
+      <select id="filter-lab">
+        <option value="aerospace">Aerospace Engineering only</option>
+        <option value="">All laboratories</option>
+      </select>
+      <span class="small muted" id="components-count"></span>
+    </div>
+    <div class="table-wrap"><table id="components-table">
+      <thead><tr><th>Component</th><th>Category</th><th>Lab</th><th>Standard</th><th>Material</th><th>Dimensions</th></tr></thead>
+      <tbody><tr><td colspan="6">Loading components…</td></tr></tbody>
+    </table></div>
+
+    <h2>Simulation</h2>
+    <div class="notice warn">⚠ <strong>Stage 2 — Not yet implemented.</strong> No solver is installed in Stage 1, so there is no result to show. The button below is disabled on purpose; Stage 2 will add a real open-source solver behind it, and results will only appear once that solver has actually run. See <a href="../docs/STATUS.md">STATUS.md</a>.</div>
+    <div class="btn-row"><button disabled>Run simulation — Stage 2</button></div>
+    <p class="small muted"><a href="../index.html">← Back to dashboard</a> · <a href="../workspace.html">Open full 3D workspace →</a></p>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 1 Foundation · Aerospace Engineering</footer>
+</div>
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  window.THREE = THREE; window.OrbitControls = OrbitControls;
+</script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/workspace3d.js"></script>
+<script src="../assets/js/materials.js"></script>
+</body>
+</html>
