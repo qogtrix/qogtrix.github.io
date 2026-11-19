@@ -579,3 +579,60 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   plate/shell/solid FEA, no code compliance (IS 800 / IS 456 /
   AISC / Eurocodes not implemented), no connection or
   foundation design, nothing validated for construction.
+
+# Stage 10 — Aerospace & Robotics Engineering Laboratory (19 Nov 2026)
+
+## 27. What changed
+
+- **Aerospace module:** `backend/aerospace.py` — pure stdlib.
+  NACA 4-digit geometry + thin-airfoil theory (alpha0 from a
+  numerical camber-slope integral, or published values for the
+  five table airfoils), lifting-line finite-wing corrections,
+  aircraft performance (ISA, Breguet, static margin),
+  multirotor momentum theory, Tsiolkovsky multi-stage
+  delta-v, thrust, Barrowman centre of pressure, and a 2-D
+  RK2 point-mass trajectory. XFOIL, AVL and OpenVSP were
+  checked and are NOT installed; this module is the
+  documented alternative.
+- **Robotics module:** `backend/robotics.py` — pure stdlib.
+  Denavit-Hartenberg FK + geometric Jacobian, analytic 2R/3R
+  IK, damped least-squares IK with joint-limit clamping and a
+  reported residual, cubic and trapezoidal trajectories,
+  capsule collision detection (sphere + box, slab test),
+  PID control of a DC-motor plant (anti-windup, saturation),
+  differential-drive FK/IK/odometry. PyBullet, ROS and MoveIt
+  were checked and are NOT installed.
+- **Solvers:** 24 new entries in `backend/solvers.py`
+  (9 aerospace + 10 robotics scalar solvers through the
+  Stage 6 job API; 5 design solvers that refuse the scalar
+  endpoint with a pointer). `run_solver` branches sit above
+  the first fallthrough raise (Stage 9 lesson).
+- **API:** `backend/app.py` `_route_aerospace` and
+  `_route_robotics` — schema (public), validate (auth),
+  analyze (auth, owner-scoped project, stores a simulation
+  job). Cross-lab integration inside the analyze endpoints:
+  the aircraft spar is checked with the Stage 9 DSM solver,
+  the robot motor with the Stage 8 `dc_motor` solver, and
+  the robot links with the Stage 9 solver. Design documents
+  `GET/PUT /api/v1/projects/{id}/aerospace` and `.../robot`
+  are version-aware (409 on stale base_version), mirroring
+  the model/structure documents. Health stage is now 10.
+- **Workspaces:** `aerospace.html` + `assets/js/aerospace.js`
+  (designer with Three.js vehicle view and CG marker,
+  performance, airfoil polar, rocket stages/stability/
+  trajectory, assistant, report) and `robotics.html` +
+  `assets/js/robotics.js` (DH editor, live joint sliders
+  with client-side FK, IK, PID + trajectory charts, mobile
+  robot odometry canvas, assistant, report).
+- **Demo projects:** `workspace/test-aerospace/` (fixed-wing,
+  multirotor, multi-stage rocket) and
+  `workspace/test-robots/` (4-DOF arm, wheeled robot,
+  assembly with motors and sensors). All analyse to their
+  references.
+- **Tests:** `backend/test_stage10.py` 140/140. Stages 2–9
+  suites still green (health assertions accept stage 10).
+- **Limits, stated in the UI and docs:** no panel method or
+  CFD; no full robot dynamics or motion planning; no 6-DOF
+  flight dynamics; spar/link checks are single cantilever
+  beams; nothing flight-certified or validated for a real
+  robot.

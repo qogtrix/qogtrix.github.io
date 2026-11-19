@@ -1,0 +1,113 @@
+{
+  "name": "4-DOF robotic arm (base yaw + 3R planar)",
+  "kind": "arm",
+  "dh": [
+    {
+      "a": 0,
+      "alpha": 1.57079632679,
+      "d": 0.15,
+      "theta": 0,
+      "type": "revolute"
+    },
+    {
+      "a": 0.4,
+      "alpha": 0,
+      "d": 0,
+      "theta": 0,
+      "type": "revolute"
+    },
+    {
+      "a": 0.35,
+      "alpha": 0,
+      "d": 0,
+      "theta": 0,
+      "type": "revolute"
+    },
+    {
+      "a": 0.15,
+      "alpha": 0,
+      "d": 0,
+      "theta": 0,
+      "type": "revolute"
+    }
+  ],
+  "joints": [
+    0.3,
+    0.5,
+    -0.8,
+    0.4
+  ],
+  "limits": [
+    [
+      -3.14,
+      3.14
+    ],
+    [
+      -2.5,
+      2.5
+    ],
+    [
+      -2.5,
+      2.5
+    ],
+    [
+      -3.14,
+      3.14
+    ]
+  ],
+  "target_pos": [
+    0.45,
+    0.35,
+    0.45
+  ],
+  "link_radius_m": 0.05,
+  "motor": {
+    "voltage_V": 12,
+    "resistance_ohm": 1.5,
+    "kt_Nm_per_A": 0.05,
+    "ke_V_per_rad_s": 0.05,
+    "load_torque_Nm": 0.02
+  },
+  "links": [
+    {
+      "name": "upper arm",
+      "length_m": 0.4,
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      },
+      "material_id": "alu-6061-t6",
+      "payload_N": 5
+    },
+    {
+      "name": "forearm",
+      "length_m": 0.35,
+      "section": {
+        "type": "circle",
+        "d_m": 0.04
+      },
+      "material_id": "alu-6061-t6",
+      "payload_N": 5
+    }
+  ],
+  "obstacles": [
+    {
+      "type": "sphere",
+      "centre": [
+        0.9,
+        0.0,
+        0.3
+      ],
+      "radius_m": 0.1,
+      "name": "test obstacle"
+    }
+  ],
+  "expected": {
+    "fk_end_position": [
+      0.797,
+      0.247,
+      0.253
+    ],
+    "ik_converged": true
+  }
+}

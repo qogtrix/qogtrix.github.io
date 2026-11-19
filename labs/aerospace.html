@@ -44,12 +44,14 @@
       <div class="icon" style="font-size:2rem">✈</div>
       <h1>Aerospace Engineering</h1>
       <p>Flight, lift and lightweight structures.</p>
-      <p>Wings, airfoils, propulsion and lightweight structures. Stage 1: wing geometry preview and airfoil reference. Stage 2: lift/drag estimation and structural check.</p>
+      <p>Wings, airfoils, propulsion and lightweight structures. Stage 1: wing geometry preview and airfoil reference. Stage 10: real aircraft, rocket and multirotor analysis — thin-airfoil theory, Tsiolkovsky delta-v, Barrowman stability, point-mass trajectories, and a Stage 9 wing-spar check.</p>
+    <p><a class="button primary" href="../aerospace.html">Open the Aerospace Workspace →</a></p>
+    <p class="small muted">Stage 10: aircraft performance (lift/drag, stall speed, Breguet range, static margin), multirotor hover, multi-stage rockets, and 2-D trajectories. Conceptual only — nothing here is flight-certified.</p>
     </section>
 
     <div class="grid cols-2">
       <div class="card"><h3>✓ Works in Stage 1</h3><ul><li>3D wing geometry preview</li><li>Airfoil + propeller references</li><li>Project workspace</li></ul></div>
-      <div class="card"><h3>Planned — Stage 2</h3><ul><li>Lift / drag estimation</li><li>Aero-structural check</li></ul><p class="small muted">These are not built yet. No button on this page pretends otherwise.</p></div>
+      <div class="card"><h3>✓ Built in Stage 10</h3><ul><li>Thin-airfoil + lifting-line lift/drag, stall speed, Breguet range/endurance</li><li>Multirotor hover (momentum theory) and rocket delta-v / Barrowman stability</li><li>2-D point-mass trajectory with ISA drag; wing-spar check via the Stage 9 solver</li></ul><p class="small muted">Conceptual only — XFOIL / AVL / OpenVSP are not installed, so there is no panel method or CFD, and nothing here is safe to fly.</p></div>
     </div>
 
     <h2>3D preview — wing</h2>
@@ -85,8 +87,8 @@
     </table></div>
 
     <h2>Simulation</h2>
-    <div class="notice warn">⚠ <strong>Stage 2 — Not yet implemented.</strong> No solver is installed in Stage 1, so there is no result to show. The button below is disabled on purpose; Stage 2 will add a real open-source solver behind it, and results will only appear once that solver has actually run. See <a href="../docs/STATUS.md">STATUS.md</a>.</div>
-    <div class="btn-row"><button disabled>Run simulation — Stage 2</button></div>
+    <div class="notice">✓ <strong>Stage 10 — Implemented.</strong> The Aerospace Workspace runs real calculations on the server: aircraft performance, multirotor hover, rocket delta-v and stability, and trajectories, validated against hand-computed references (see <a href="../docs/TEST_RESULTS_STAGE10.md">TEST_RESULTS_STAGE10.md</a>). No XFOIL / AVL / OpenVSP is installed on this machine, so there is no panel-method or CFD analysis — and no result here is flight-certified.</div>
+    <div class="btn-row"><a class="button primary" href="../aerospace.html">Open the Aerospace Workspace →</a></div>
     <p class="small muted"><a href="../index.html">← Back to dashboard</a> · <a href="../workspace.html">Open full 3D workspace →</a></p>
   </main>
   <footer>AI Engineering Laboratory · Stage 1 Foundation · Aerospace Engineering</footer>

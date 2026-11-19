@@ -1,0 +1,15 @@
+{
+  "name": "Multirotor drone (2 kg quadcopter)",
+  "kind": "multirotor",
+  "mass_kg": 2,
+  "n_rotors": 4,
+  "rotor_diameter_m": 0.25,
+  "altitude_m": 0,
+  "figure_of_merit": 0.7,
+  "battery_energy_Wh": 100,
+  "expected": {
+    "thrust_per_rotor_N": 4.9,
+    "hover_power_W": 178.9,
+    "hover_endurance_min": 28.5
+  }
+}

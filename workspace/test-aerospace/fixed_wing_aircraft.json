@@ -1,0 +1,40 @@
+{
+  "name": "Fixed-wing aircraft (10 kg electric UAV)",
+  "kind": "aircraft",
+  "mass_kg": 10,
+  "wing_area_m2": 1.0,
+  "span_m": 2.828,
+  "oswald_e": 0.8,
+  "cd0": 0.02,
+  "k": 0.05,
+  "cl_max": 1.4,
+  "cruise_speed_m_s": 20,
+  "altitude_m": 0,
+  "prop_efficiency": 0.7,
+  "battery_energy_Wh": 500,
+  "motor_efficiency": 0.85,
+  "components": [
+    {"name": "wing", "mass_kg": 3, "x_m": 0.5},
+    {"name": "fuselage", "mass_kg": 4, "x_m": 0.6},
+    {"name": "tail", "mass_kg": 1, "x_m": 1.4},
+    {"name": "battery", "mass_kg": 2, "x_m": 0.3}
+  ],
+  "mac_m": 0.35,
+  "x_ac_wing_m": 0.55,
+  "tail_volume": 0.5,
+  "spar": {
+    "length_m": 1.414,
+    "section": {"type": "rectangle", "b_m": 0.02, "h_m": 0.05},
+    "material_id": "alu-7075-t6",
+    "lift_N": 49.03
+  },
+  "airfoil_code": "naca2412",
+  "expected": {
+    "stall_speed_m_s": 10.69,
+    "lift_to_drag": 11.12,
+    "power_required_W": 176.3,
+    "cg_x_m": 0.59,
+    "statically_stable": true,
+    "spar_utilization_below": 0.1
+  }
+}

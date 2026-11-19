@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robotics Engineering Laboratory — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .robo-layout { display: grid; grid-template-columns: 340px 1fr; gap: 12px; }
+  @media (max-width: 1100px) { .robo-layout { grid-template-columns: 1fr; } }
+  #viewport { width: 100%; height: 440px; background: #0b0e14; border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  #mobile-canvas { width: 100%; height: 320px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  .safety { background: #2a1a3a; border: 1px solid #6b4a9e; color: #dcc8ff; padding: 10px 12px; border-radius: 8px; }
+  .chart { width: 100%; height: 220px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  table.results td, table.results th { padding: 4px 8px; }
+  .field-row label { min-width: 150px; }
+  .pill-ok { color: #4ade80; } .pill-warn { color: #facc15; } .pill-bad { color: #f87171; }
+  .editor-table input, .editor-table select { width: 100%; }
+  .editor-table td { padding: 3px 4px; }
+  .slider-row { display: grid; grid-template-columns: 90px 1fr 60px; gap: 8px; align-items: center; margin: 4px 0; }
+  details { margin: 8px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="sidebar">
+    <div class="brand">AI Engineering<br>Laboratory</div>
+    <div class="brand-sub">Stage 10 · Robotics</div>
+    <nav>
+      <a class="nav-link" href="index.html"><span class="ic">⌂</span> Dashboard</a>
+      <a class="nav-link" href="projects.html"><span class="ic">▦</span> My Projects</a>
+      <a class="nav-link" href="gallery.html"><span class="ic">▤</span> Public Gallery</a>
+      <a class="nav-link" href="materials.html"><span class="ic">▣</span> Materials Library</a>
+      <a class="nav-link" href="workspace.html"><span class="ic">⬡</span> 3D Workspace</a>
+      <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+      <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical Lab</a>
+      <a class="nav-link" href="electrical.html"><span class="ic">⚡</span> Electrical Lab</a>
+      <a class="nav-link" href="structural.html"><span class="ic">▦</span> Structural Lab</a>
+      <a class="nav-link" href="aerospace.html"><span class="ic">✈</span> Aerospace Lab</a>
+      <a class="nav-link active" href="robotics.html"><span class="ic">🤖</span> Robotics Lab</a>
+      <a class="nav-link" href="labs/robotics.html"><span class="ic">⌁</span> Robotics (lab page)</a>
+      <a class="nav-link" href="auth.html"><span class="ic">◉</span> Sign in</a>
+      <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Settings</a>
+    </nav>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <h1>Robotics Engineering Laboratory</h1>
+      <span class="badge stage">STAGE 10</span>
+    </div>
+
+    <div class="safety">
+      <strong>Robotics safety.</strong> Everything here is a <em>conceptual / preliminary design</em> analysed
+      by real kinematics, control and collision models. <strong>Nothing on this page is validated for a real
+      robot or a safety-critical application.</strong> Joint torques are checked against a steady-state DC motor
+      model and link stresses against the Stage 9 beam solver — there is no full dynamics simulation, no
+      safety-rated controller, and no real-world testing. PyBullet / ROS / MoveIt are not installed here.
+    </div>
+
+    <div class="tabs" style="margin-top:12px">
+      <button class="tab active" data-tab="arm">Arm Designer</button>
+      <button class="tab" data-tab="control">Control</button>
+      <button class="tab" data-tab="mobile">Mobile Robot</button>
+      <button class="tab" data-tab="assistant">AI Assistant</button>
+      <button class="tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ============ ARM ============ -->
+    <section id="tab-arm">
+      <div class="card">
+        <div class="field-row">
+          <label for="project-select">Project</label>
+          <select id="project-select"><option value="">(guest — design saved locally only)</option></select>
+          <label for="demo-select">Demo</label>
+          <select id="demo-select">
+            <option value="">— load a demo —</option>
+            <option value="robot_arm">Robotic arm (4-DOF, IK)</option>
+            <option value="robot_assembly">Assembly with motors &amp; sensors</option>
+          </select>
+        </div>
+        <p class="muted" id="robo-status">Sign in and pick a project to run server analyses and save the design.</p>
+      </div>
+
+      <div class="robo-layout">
+        <div class="card">
+          <h3>Denavit-Hartenberg table</h3>
+          <p class="muted">Standard DH: a (m), α (deg), d (m), θ offset (deg). All joints revolute in these demos.</p>
+          <table class="editor-table"><thead><tr><th>Joint</th><th>a m</th><th>α deg</th><th>d m</th><th>θ₀ deg</th><th>Min °</th><th>Max °</th></tr></thead>
+          <tbody id="dh-rows"></tbody></table>
+          <button class="button" id="btn-add-joint">+ Add joint</button>
+          <button class="button" id="btn-del-joint">− Remove last joint</button>
+          <h3>Joint angles</h3>
+          <div id="joint-sliders"></div>
+          <h3>Inverse kinematics</h3>
+          <div class="field-row"><label>Target x (m)</label><input id="ik-x" type="number" step="0.05" value="0.45"></div>
+          <div class="field-row"><label>Target y (m)</label><input id="ik-y" type="number" step="0.05" value="0.35"></div>
+          <div class="field-row"><label>Target z (m)</label><input id="ik-z" type="number" step="0.05" value="0.45"></div>
+          <button class="button primary" id="btn-run-ik">Run IK (DLS)</button>
+          <button class="button" id="btn-run-arm">Run full arm analysis</button>
+          <div id="ik-results"></div>
+          <details><summary>Motor &amp; link checks (Stage 8 + Stage 9)</summary>
+            <div class="field-row"><label>Motor voltage (V)</label><input id="mt-v" type="number" step="1" value="12"></div>
+            <div class="field-row"><label>Motor resistance (Ω)</label><input id="mt-r" type="number" step="0.1" value="1.5"></div>
+            <div class="field-row"><label>Kt (Nm/A)</label><input id="mt-kt" type="number" step="0.01" value="0.05"></div>
+            <div class="field-row"><label>Ke (V·s/rad)</label><input id="mt-ke" type="number" step="0.01" value="0.05"></div>
+            <div class="field-row"><label>Load torque (Nm)</label><input id="mt-load" type="number" step="0.01" value="0.02"></div>
+            <div class="field-row"><label>Payload (N)</label><input id="lk-payload" type="number" step="1" value="5"></div>
+            <div class="field-row"><label>Link material</label><select id="lk-mat"></select></div>
+            <div class="field-row"><label>Link diameter (m)</label><input id="lk-d" type="number" step="0.005" value="0.05"></div>
+            <p class="muted">Links are checked as cantilever beams carrying the payload at the tip (Stage 9 solver, conservative).</p>
+          </details>
+          <div style="margin-top:10px"><button class="button primary" id="btn-save-design">Save design</button></div>
+        </div>
+        <div class="card">
+          <h3>3D view</h3>
+          <div id="viewport"></div>
+          <p class="muted">Drag to orbit, scroll to zoom. Joint sliders move the arm live (forward kinematics in the browser).</p>
+          <div id="fk-readout"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTROL ============ -->
+    <section id="tab-control" style="display:none">
+      <div class="card">
+        <h3>PID control of a DC motor</h3>
+        <p class="muted">Plant: L di/dt + R i = V − Ke·ω; J dω/dt + b·ω = Kt·i − load. Discrete PID with voltage saturation and anti-windup. Needs a signed-in project.</p>
+        <div class="field-row"><label>Kp</label><input id="pid-kp" type="number" step="0.1" value="2"></div>
+        <div class="field-row"><label>Ki</label><input id="pid-ki" type="number" step="0.1" value="0.5"></div>
+        <div class="field-row"><label>Kd</label><input id="pid-kd" type="number" step="0.1" value="1.5"></div>
+        <div class="field-row"><label>Setpoint (rad)</label><input id="pid-sp" type="number" step="0.1" value="1"></div>
+        <div class="field-row"><label>R (Ω)</label><input id="pid-r" type="number" step="0.1" value="1.5"></div>
+        <div class="field-row"><label>L (H)</label><input id="pid-l" type="number" step="0.0005" value="0.001"></div>
+        <div class="field-row"><label>Kt (Nm/A)</label><input id="pid-kt" type="number" step="0.01" value="0.05"></div>
+        <div class="field-row"><label>Ke (V·s/rad)</label><input id="pid-ke" type="number" step="0.01" value="0.05"></div>
+        <div class="field-row"><label>J (kg·m²)</label><input id="pid-j" type="number" step="0.001" value="0.01"></div>
+        <div class="field-row"><label>b (Nm·s)</label><input id="pid-b" type="number" step="0.001" value="0.001"></div>
+        <div class="field-row"><label>Load torque (Nm)</label><input id="pid-load" type="number" step="0.01" value="0"></div>
+        <div class="field-row"><label>Voltage limit (V)</label><input id="pid-vmax" type="number" step="1" value="12"></div>
+        <div class="field-row"><label>Duration (s)</label><input id="pid-dur" type="number" step="0.5" value="5"></div>
+        <button class="button primary" id="btn-run-pid">Run PID simulation</button>
+        <span id="pid-status" class="muted"></span>
+        <div id="pid-results"></div>
+        <canvas class="chart" id="pid-chart" width="900" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h3>Joint-space trajectory (cubic)</h3>
+        <p class="muted">Cubic polynomial, zero end velocities. Enter start and end joints in degrees, separated by commas.</p>
+        <div class="field-row"><label>Start joints (°)</label><input id="tr-q0" value="0, 34, -52, 17"></div>
+        <div class="field-row"><label>End joints (°)</label><input id="tr-q1" value="29, 17, -29, 0"></div>
+        <div class="field-row"><label>Duration (s)</label><input id="tr-dur" type="number" step="0.5" value="2"></div>
+        <button class="button primary" id="btn-run-traj">Run trajectory</button>
+        <span id="traj-status" class="muted"></span>
+        <div id="traj-results"></div>
+        <canvas class="chart" id="traj-chart" width="900" height="220"></canvas>
+      </div>
+    </section>
+
+    <!-- ============ MOBILE ============ -->
+    <section id="tab-mobile" style="display:none">
+      <div class="card">
+        <h3>Differential-drive robot</h3>
+        <p class="muted">Unicycle model, no wheel slip. Odometry is dead reckoning — it drifts in the real world.</p>
+        <div class="field-row"><label>Wheel radius (m)</label><input id="dd-r" type="number" step="0.005" value="0.05"></div>
+        <div class="field-row"><label>Track (m)</label><input id="dd-track" type="number" step="0.01" value="0.3"></div>
+        <div class="field-row"><label>Left wheel (rad/s)</label><input id="dd-vl" type="number" step="1" value="10"></div>
+        <div class="field-row"><label>Right wheel (rad/s)</label><input id="dd-vr" type="number" step="1" value="10"></div>
+        <div class="field-row"><label>Step (s)</label><input id="dd-dt" type="number" step="0.1" value="1"></div>
+        <button class="button primary" id="btn-run-dd">Drive one step</button>
+        <button class="button" id="btn-run-square">Drive a square (odometry)</button>
+        <span id="dd-status" class="muted"></span>
+        <div id="dd-results"></div>
+        <canvas id="mobile-canvas" width="900" height="320"></canvas>
+      </div>
+    </section>
+
+    <!-- ============ ASSISTANT ============ -->
+    <section id="tab-assistant" style="display:none">
+      <div class="card">
+        <h3>AI robotics assistant</h3>
+        <p class="muted">The assistant reads only the last real analysis result. It never invents numbers and never assumes a missing parameter.</p>
+        <button class="button primary" id="btn-assist">Review my robot</button>
+        <div id="assist-out"></div>
+      </div>
+    </section>
+
+    <!-- ============ REPORT ============ -->
+    <section id="tab-report" style="display:none">
+      <div class="card">
+        <h3>Engineering report</h3>
+        <button class="button" id="btn-report">Build report</button>
+        <button class="button" id="btn-csv">Download results CSV</button>
+        <button class="button" onclick="window.print()">Print / PDF</button>
+        <div id="report-out"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/materials.js"></script>
+<script type="module" src="assets/js/robotics.js"></script>
+<script>
+  document.querySelectorAll('.tab').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('main section').forEach((s) => { s.style.display = 'none'; });
+      document.getElementById('tab-' + b.dataset.tab).style.display = '';
+      if (b.dataset.tab === 'arm' && window.__roboRefresh) window.__roboRefresh();
+    });
+  });
+  setTimeout(() => { if (!window.__roboReady) document.getElementById('robo-status').textContent = 'Robotics workspace is still loading — if this stays, check your connection and reload.'; }, 10000);
+</script>
+</body>
+</html>

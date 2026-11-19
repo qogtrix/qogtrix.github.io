@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aerospace Engineering Laboratory — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .aero-layout { display: grid; grid-template-columns: 320px 1fr; gap: 12px; }
+  @media (max-width: 1100px) { .aero-layout { grid-template-columns: 1fr; } }
+  #viewport { width: 100%; height: 440px; background: #0b0e14; border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  .safety { background: #1a2a4a; border: 1px solid #2f5b9e; color: #bcd8ff; padding: 10px 12px; border-radius: 8px; }
+  .chart { width: 100%; height: 220px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  table.results td, table.results th { padding: 4px 8px; }
+  .field-row label { min-width: 140px; }
+  .pill-ok { color: #4ade80; } .pill-warn { color: #facc15; } .pill-bad { color: #f87171; }
+  .editor-table input, .editor-table select { width: 100%; }
+  .editor-table td { padding: 3px 4px; }
+  details { margin: 8px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="sidebar">
+    <div class="brand">AI Engineering<br>Laboratory</div>
+    <div class="brand-sub">Stage 10 · Aerospace</div>
+    <nav>
+      <a class="nav-link" href="index.html"><span class="ic">⌂</span> Dashboard</a>
+      <a class="nav-link" href="projects.html"><span class="ic">▦</span> My Projects</a>
+      <a class="nav-link" href="gallery.html"><span class="ic">▤</span> Public Gallery</a>
+      <a class="nav-link" href="materials.html"><span class="ic">▣</span> Materials Library</a>
+      <a class="nav-link" href="workspace.html"><span class="ic">⬡</span> 3D Workspace</a>
+      <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+      <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical Lab</a>
+      <a class="nav-link" href="electrical.html"><span class="ic">⚡</span> Electrical Lab</a>
+      <a class="nav-link" href="structural.html"><span class="ic">▦</span> Structural Lab</a>
+      <a class="nav-link active" href="aerospace.html"><span class="ic">✈</span> Aerospace Lab</a>
+      <a class="nav-link" href="robotics.html"><span class="ic">🤖</span> Robotics Lab</a>
+      <a class="nav-link" href="labs/aerospace.html"><span class="ic">⌁</span> Aerospace (lab page)</a>
+      <a class="nav-link" href="auth.html"><span class="ic">◉</span> Sign in</a>
+      <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Settings</a>
+    </nav>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <h1>Aerospace Engineering Laboratory</h1>
+      <span class="badge stage">STAGE 10</span>
+    </div>
+
+    <div class="safety">
+      <strong>Aerospace safety.</strong> Everything here is a <em>conceptual / preliminary design</em>
+      analysed by real (simplified) engineering models — thin-airfoil theory, lifting-line corrections,
+      Tsiolkovsky's equation, Barrowman stability, a 2-D point-mass trajectory. <strong>Nothing on this
+      page is flight-certified engineering.</strong> XFOIL, AVL and OpenVSP are not installed here, so
+      there is no panel-method or CFD analysis. A completed calculation never makes an aircraft, rocket
+      or drone safe to fly. Real flight hardware needs validated tools, wind-tunnel or flight testing,
+      and qualified review.
+    </div>
+
+    <div class="tabs" style="margin-top:12px">
+      <button class="tab active" data-tab="designer">Designer</button>
+      <button class="tab" data-tab="performance">Performance</button>
+      <button class="tab" data-tab="rocket">Rocket</button>
+      <button class="tab" data-tab="assistant">AI Assistant</button>
+      <button class="tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ============ DESIGNER ============ -->
+    <section id="tab-designer">
+      <div class="card">
+        <div class="field-row">
+          <label for="project-select">Project</label>
+          <select id="project-select"><option value="">(guest — design saved locally only)</option></select>
+          <label for="demo-select">Demo</label>
+          <select id="demo-select">
+            <option value="">— load a demo —</option>
+            <option value="fixed_wing_aircraft">Fixed-wing aircraft (10 kg UAV)</option>
+            <option value="multirotor_drone">Multirotor drone (2 kg quad)</option>
+            <option value="multistage_rocket">Multi-stage rocket</option>
+          </select>
+          <label for="kind-select">Vehicle kind</label>
+          <select id="kind-select">
+            <option value="aircraft">Fixed-wing aircraft</option>
+            <option value="multirotor">Multirotor drone</option>
+            <option value="rocket">Rocket</option>
+          </select>
+        </div>
+        <p class="muted" id="aero-status">Sign in and pick a project to run server analyses and save the design.</p>
+      </div>
+
+      <div class="aero-layout">
+        <div class="card">
+          <h3 id="editor-title">Aircraft parameters</h3>
+          <div id="editor-aircraft">
+            <div class="field-row"><label>Mass (kg)</label><input id="ac-mass" type="number" step="0.1" value="10"></div>
+            <div class="field-row"><label>Wing area (m²)</label><input id="ac-area" type="number" step="0.01" value="1"></div>
+            <div class="field-row"><label>Span (m)</label><input id="ac-span" type="number" step="0.01" value="2.828"></div>
+            <div class="field-row"><label>Oswald efficiency e</label><input id="ac-e" type="number" step="0.01" value="0.8"></div>
+            <div class="field-row"><label>Cd0 (parasite)</label><input id="ac-cd0" type="number" step="0.001" value="0.02"></div>
+            <div class="field-row"><label>Drag-polar k</label><input id="ac-k" type="number" step="0.001" value="0.05"></div>
+            <div class="field-row"><label>Clmax</label><input id="ac-clmax" type="number" step="0.01" value="1.4"></div>
+            <div class="field-row"><label>Cruise speed (m/s)</label><input id="ac-speed" type="number" step="0.5" value="20"></div>
+            <div class="field-row"><label>Altitude (m)</label><input id="ac-alt" type="number" step="100" value="0"></div>
+            <div class="field-row"><label>Prop efficiency</label><input id="ac-eta" type="number" step="0.01" value="0.7"></div>
+            <div class="field-row"><label>Battery (Wh)</label><input id="ac-batt" type="number" step="10" value="500"></div>
+            <div class="field-row"><label>Airfoil</label>
+              <select id="ac-airfoil">
+                <option value="naca2412">NACA 2412</option>
+                <option value="naca4412">NACA 4412</option>
+                <option value="naca0012">NACA 0012</option>
+                <option value="naca23012">NACA 23012</option>
+                <option value="naca6412">NACA 6412</option>
+              </select>
+            </div>
+            <div class="field-row"><label>Mean chord MAC (m)</label><input id="ac-mac" type="number" step="0.01" value="0.35"></div>
+            <div class="field-row"><label>Wing AC x from nose (m)</label><input id="ac-xac" type="number" step="0.01" value="0.55"></div>
+            <div class="field-row"><label>Tail volume</label><input id="ac-tailvol" type="number" step="0.01" value="0.5"></div>
+            <details><summary>Component masses (for centre of gravity)</summary>
+              <p class="muted">Four components, x measured from the nose. Their masses must sum to the total mass within 5%.</p>
+              <table class="editor-table"><thead><tr><th>Component</th><th>Mass kg</th><th>x m</th></tr></thead>
+              <tbody id="ac-components">
+                <tr><td>Wing</td><td><input data-c="0" data-f="mass" type="number" step="0.1" value="3"></td><td><input data-c="0" data-f="x" type="number" step="0.05" value="0.5"></td></tr>
+                <tr><td>Fuselage</td><td><input data-c="1" data-f="mass" type="number" step="0.1" value="4"></td><td><input data-c="1" data-f="x" type="number" step="0.05" value="0.6"></td></tr>
+                <tr><td>Tail</td><td><input data-c="2" data-f="mass" type="number" step="0.1" value="1"></td><td><input data-c="2" data-f="x" type="number" step="0.05" value="1.4"></td></tr>
+                <tr><td>Battery</td><td><input data-c="3" data-f="mass" type="number" step="0.1" value="2"></td><td><input data-c="3" data-f="x" type="number" step="0.05" value="0.3"></td></tr>
+              </tbody></table>
+            </details>
+            <details><summary>Wing spar (Stage 9 structural check)</summary>
+              <div class="field-row"><label>Spar material</label><select id="ac-spar-mat"></select></div>
+              <div class="field-row"><label>Spar length (m)</label><input id="ac-spar-len" type="number" step="0.01" value="1.414"></div>
+              <div class="field-row"><label>Spar section b (m)</label><input id="ac-spar-b" type="number" step="0.001" value="0.02"></div>
+              <div class="field-row"><label>Spar section h (m)</label><input id="ac-spar-h" type="number" step="0.001" value="0.05"></div>
+              <p class="muted">The spar is checked as a cantilever beam carrying one wing's lift at its tip (conservative). Uses the Stage 9 solver.</p>
+            </details>
+          </div>
+          <div id="editor-multirotor" style="display:none">
+            <div class="field-row"><label>Mass (kg)</label><input id="mr-mass" type="number" step="0.1" value="2"></div>
+            <div class="field-row"><label>Rotors</label><input id="mr-n" type="number" step="1" value="4"></div>
+            <div class="field-row"><label>Rotor diameter (m)</label><input id="mr-d" type="number" step="0.01" value="0.25"></div>
+            <div class="field-row"><label>Figure of merit</label><input id="mr-fom" type="number" step="0.01" value="0.7"></div>
+            <div class="field-row"><label>Battery (Wh)</label><input id="mr-batt" type="number" step="5" value="100"></div>
+          </div>
+          <div id="editor-rocket" style="display:none">
+            <p class="muted">Rocket stages and stability are edited on the <b>Rocket</b> tab. This page shows the 3D vehicle.</p>
+            <div class="field-row"><label>Body diameter (m)</label><input id="rk-d" type="number" step="0.01" value="0.1"></div>
+            <div class="field-row"><label>Body length (m)</label><input id="rk-len" type="number" step="0.1" value="1.0"></div>
+          </div>
+          <div style="margin-top:10px">
+            <button class="button primary" id="btn-save-design">Save design</button>
+            <button class="button" id="btn-refresh-view">Refresh 3D view</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>3D view</h3>
+          <div id="viewport"></div>
+          <p class="muted">Drag to orbit, scroll to zoom. The red sphere marks the centre of gravity when a performance analysis has run.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PERFORMANCE ============ -->
+    <section id="tab-performance" style="display:none">
+      <div class="card">
+        <h3>Aircraft / multirotor performance</h3>
+        <p class="muted">Runs on the server (thin-airfoil + lifting-line + Breguet / momentum theory). Needs a signed-in project.</p>
+        <button class="button primary" id="btn-run-perf">Run performance analysis</button>
+        <span id="perf-status" class="muted"></span>
+        <div id="perf-results"></div>
+      </div>
+      <div class="card">
+        <h3>Airfoil polar (thin-airfoil theory)</h3>
+        <p class="muted">Computed in the browser from the same thin-airfoil formula the server uses (Cl = 2π(α − α₀), Cd = Cd₀ + k·Cl²). Typical Cd₀/k/Clmax values for the listed airfoils.</p>
+        <div class="field-row"><label>Airfoil</label><select id="polar-airfoil">
+          <option value="naca2412">NACA 2412</option><option value="naca4412">NACA 4412</option>
+          <option value="naca0012">NACA 0012</option><option value="naca23012">NACA 23012</option>
+          <option value="naca6412">NACA 6412</option></select>
+        <button class="button" id="btn-polar">Draw polar</button></div>
+        <canvas class="chart" id="polar-chart" width="900" height="220"></canvas>
+        <div id="polar-results"></div>
+      </div>
+      <div class="card">
+        <h3>Analysis jobs</h3>
+        <div id="jobs-list"><p class="muted">No project selected.</p></div>
+      </div>
+    </section>
+
+    <!-- ============ ROCKET ============ -->
+    <section id="tab-rocket" style="display:none">
+      <div class="card">
+        <h3>Stages (Tsiolkovsky delta-v)</h3>
+        <table class="editor-table"><thead><tr><th>Stage</th><th>Isp (s)</th><th>m0 (kg)</th><th>mf (kg)</th><th></th></tr></thead>
+        <tbody id="stage-rows"></tbody></table>
+        <button class="button" id="btn-add-stage">+ Add stage</button>
+        <button class="button primary" id="btn-run-rocket">Run rocket analysis</button>
+        <span id="rocket-status" class="muted"></span>
+        <div id="rocket-results"></div>
+      </div>
+      <div class="card">
+        <h3>Stability (Barrowman centre of pressure)</h3>
+        <p class="muted">Nose: conical, 0.3 m long, 0.1 m diameter. Fins: 4, root chord 0.15 m, tip chord 0.07 m, span 0.08 m, leading edge at 0.85 m. Edit CG and diameter below.</p>
+        <div class="field-row"><label>CG x from nose (m)</label><input id="rk-cg" type="number" step="0.01" value="0.55"></div>
+        <div class="field-row"><label>Body diameter (m)</label><input id="rk-cgd" type="number" step="0.01" value="0.1"></div>
+      </div>
+      <div class="card">
+        <h3>Trajectory (2-D point-mass)</h3>
+        <p class="muted">Gravity, ISA drag, thrust profile, mass loss. No wind, no guidance. Needs a signed-in project.</p>
+        <div class="field-row"><label>Mass (kg)</label><input id="tr-mass" type="number" step="1" value="50"></div>
+        <div class="field-row"><label>Diameter (m)</label><input id="tr-d" type="number" step="0.01" value="0.15"></div>
+        <div class="field-row"><label>Drag coefficient Cd</label><input id="tr-cd" type="number" step="0.05" value="0.5"></div>
+        <div class="field-row"><label>Launch angle (°)</label><input id="tr-ang" type="number" step="1" value="90"></div>
+        <div class="field-row"><label>Thrust (N)</label><input id="tr-thrust" type="number" step="100" value="5000"></div>
+        <div class="field-row"><label>Burn time (s)</label><input id="tr-burn" type="number" step="0.5" value="5"></div>
+        <div class="field-row"><label>Mass flow (kg/s)</label><input id="tr-mdot" type="number" step="0.1" value="2"></div>
+        <button class="button primary" id="btn-run-traj">Run trajectory</button>
+        <span id="traj-status" class="muted"></span>
+        <div id="traj-results"></div>
+        <canvas class="chart" id="traj-chart" width="900" height="220"></canvas>
+      </div>
+    </section>
+
+    <!-- ============ ASSISTANT ============ -->
+    <section id="tab-assistant" style="display:none">
+      <div class="card">
+        <h3>AI aerospace assistant</h3>
+        <p class="muted">The assistant reads only the last real analysis result. It never invents numbers and never assumes a missing parameter.</p>
+        <button class="button primary" id="btn-assist">Review my design</button>
+        <div id="assist-out"></div>
+      </div>
+    </section>
+
+    <!-- ============ REPORT ============ -->
+    <section id="tab-report" style="display:none">
+      <div class="card">
+        <h3>Engineering report</h3>
+        <button class="button" id="btn-report">Build report</button>
+        <button class="button" id="btn-csv">Download results CSV</button>
+        <button class="button" onclick="window.print()">Print / PDF</button>
+        <div id="report-out"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/materials.js"></script>
+<script type="module" src="assets/js/aerospace.js"></script>
+<script>
+  // Tab switching + a fallback if the module takes a moment to load.
+  document.querySelectorAll('.tab').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('main section').forEach((s) => { s.style.display = 'none'; });
+      document.getElementById('tab-' + b.dataset.tab).style.display = '';
+      if (b.dataset.tab === 'designer' && window.__aeroRefresh) window.__aeroRefresh();
+    });
+  });
+  setTimeout(() => { if (!window.__aeroReady) document.getElementById('aero-status').textContent = 'Aerospace workspace is still loading — if this stays, check your connection and reload.'; }, 10000);
+</script>
+</body>
+</html>

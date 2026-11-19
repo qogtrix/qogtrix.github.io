@@ -1,0 +1,17 @@
+{
+  "name": "Wheeled autonomous robot (differential drive)",
+  "kind": "mobile",
+  "wheel_radius_m": 0.05,
+  "track_m": 0.3,
+  "straight_test": {"v_left_m_s": 10, "v_right_m_s": 10, "dt_s": 1.0, "expected_pose": [0.5, 0, 0]},
+  "square_path": {
+    "left_speeds": [10, 10, -3, 3, 10, 10, -3, 3, 10, 10, -3, 3, 10, 10],
+    "right_speeds": [10, 10, 3, -3, 10, 10, 3, -3, 10, 10, 3, -3, 10, 10],
+    "dt_s": 1.0
+  },
+  "sensors": [
+    {"type": "lidar", "range_m": 12, "note": "descriptive — no sensor model is simulated"},
+    {"type": "encoder", "counts_per_rev": 1024, "note": "descriptive"},
+    {"type": "imu", "note": "descriptive"}
+  ]
+}

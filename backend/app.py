@@ -28,6 +28,8 @@ import model as modelmod
 import solvers as solversmod
 import circuit as circuitmod
 import structure as structuremod
+import aerospace as aeromod
+import robotics as robotmod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -193,7 +195,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 9,
+                return self._send(200, {"status": "ok", "stage": 10,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -218,6 +220,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_model(path, method, query)
             if "/structure" in path and path.startswith("/api/v1/projects/"):
                 return self._route_project_structure(path, method, query)
+            if "/aerospace" in path and path.startswith("/api/v1/projects/"):
+                return self._route_project_aerospace(path, method, query)
+            if "/robot" in path and path.startswith("/api/v1/projects/"):
+                return self._route_project_robot(path, method, query)
             if path.startswith("/api/v1/projects"):
                 return self._route_projects(path, method, query)
             if path == "/api/v1/solvers" and method == "GET":
@@ -228,6 +234,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_circuits(path, method, query)
             if path.startswith("/api/v1/structures"):
                 return self._route_structures(path, method, query)
+            if path.startswith("/api/v1/aerospace"):
+                return self._route_aerospace(path, method, query)
+            if path.startswith("/api/v1/robotics"):
+                return self._route_robotics(path, method, query)
             if path.startswith("/api/v1/simulate/"):
                 return self._send(501, {"status": "not_implemented",
                                         "stage": 3,
@@ -1115,6 +1125,336 @@ class Handler(BaseHTTPRequestHandler):
             self.conn.commit()
             return self._send(201, self._sim_public(
                 self._own_simulation(sid, user["id"])))
+        raise ApiError(404, "Not found")
+
+    # --- Stage 10: aerospace / robotics design documents --------
+    def _aerospace_of(self, row):
+        payload = json.loads(row["payload"] or "{}")
+        design = payload.get("aerospace") or {"version": 1, "kind": "aircraft"}
+        return payload, design
+
+    def _save_aerospace(self, pid, owner_id, payload, design):
+        payload["aerospace"] = design
+        self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
+            (json.dumps(payload), pid, owner_id))
+        self.conn.commit()
+
+    def _robot_of(self, row):
+        payload = json.loads(row["payload"] or "{}")
+        design = payload.get("robot") or {"version": 1, "kind": "arm",
+                                          "dh": [], "joints": []}
+        return payload, design
+
+    def _save_robot(self, pid, owner_id, payload, design):
+        payload["robot"] = design
+        self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
+            (json.dumps(payload), pid, owner_id))
+        self.conn.commit()
+
+    def _validate_aerospace_design(self, design):
+        if not isinstance(design, dict):
+            return ["design must be an object"]
+        kind = design.get("kind")
+        if kind not in ("aircraft", "rocket", "multirotor"):
+            return [f"design.kind must be aircraft, rocket or multirotor (got {kind!r})"]
+        return []
+
+    def _validate_robot_design(self, design):
+        if not isinstance(design, dict):
+            return ["design must be an object"]
+        kind = design.get("kind")
+        if kind not in ("arm", "mobile"):
+            return [f"design.kind must be arm or mobile (got {kind!r})"]
+        errors = []
+        for i, row in enumerate(design.get("dh") or []):
+            for k in ("a", "alpha", "d", "theta"):
+                if k not in row or not isinstance(row[k], (int, float)):
+                    errors.append(f"dh[{i}].{k} must be a number")
+        return errors
+
+    def _route_project_aerospace(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        if len(parts) < 5 or parts[4] != "aerospace":
+            raise ApiError(404, "Not found")
+        user = self._current_user()
+        pid = parts[3]
+        row = self._own_project(pid, user["id"])
+        payload, design = self._aerospace_of(row)
+        if len(parts) == 5:
+            if method == "GET":
+                return self._send(200, {"project_id": pid, "design": design})
+            if method == "PUT":
+                data = self._read_json()
+                candidate = data.get("design")
+                if not isinstance(candidate, dict):
+                    raise ApiError(400, "Body must contain a design object")
+                base_version = data.get("base_version")
+                if base_version is not None and base_version != design["version"]:
+                    raise ApiError(409, "This design was changed elsewhere "
+                                        f"(current version {design['version']}, "
+                                        f"you based your edit on {base_version}). "
+                                        "Reload the design and re-apply your change.")
+                errors = self._validate_aerospace_design(candidate)
+                if errors:
+                    raise ApiError(400, "Invalid design: " + "; ".join(errors))
+                candidate["version"] = design["version"] + 1
+                self._save_aerospace(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid, "design": candidate})
+            raise ApiError(404, "Not found")
+        raise ApiError(404, "Not found")
+
+    def _route_project_robot(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        if len(parts) < 5 or parts[4] != "robot":
+            raise ApiError(404, "Not found")
+        user = self._current_user()
+        pid = parts[3]
+        row = self._own_project(pid, user["id"])
+        payload, design = self._robot_of(row)
+        if len(parts) == 5:
+            if method == "GET":
+                return self._send(200, {"project_id": pid, "design": design})
+            if method == "PUT":
+                data = self._read_json()
+                candidate = data.get("design")
+                if not isinstance(candidate, dict):
+                    raise ApiError(400, "Body must contain a design object")
+                base_version = data.get("base_version")
+                if base_version is not None and base_version != design["version"]:
+                    raise ApiError(409, "This design was changed elsewhere "
+                                        f"(current version {design['version']}, "
+                                        f"you based your edit on {base_version}). "
+                                        "Reload the design and re-apply your change.")
+                errors = self._validate_robot_design(candidate)
+                if errors:
+                    raise ApiError(400, "Invalid design: " + "; ".join(errors))
+                candidate["version"] = design["version"] + 1
+                self._save_robot(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid, "design": candidate})
+            raise ApiError(404, "Not found")
+        raise ApiError(404, "Not found")
+
+    def _spar_check(self, spar, props_fn):
+        """Stage 9 structural check of a wing spar: one cantilever
+        beam carrying the lift at its tip. Returns the Stage 9
+        summary fields."""
+        length = float(spar["length_m"])
+        lift = float(spar["lift_N"])
+        structure = {
+            "nodes": [{"id": "root", "x_m": 0, "y_m": 0, "z_m": 0},
+                      {"id": "tip", "x_m": length, "y_m": 0, "z_m": 0}],
+            "elements": [{"id": "spar", "type": "beam", "n1": "root",
+                          "n2": "tip", "section": spar["section"],
+                          "material_id": spar["material_id"]}],
+            "supports": [{"node": "root", "ux": True, "uy": True, "uz": True,
+                          "rx": True, "ry": True, "rz": True}],
+            "loads": [{"case": "lift", "type": "point", "node": "tip",
+                       "fy_N": lift}],
+            "combinations": []}
+        res = structuremod.analyze_static(structure, props_fn, case="lift")
+        el = res["elements"][0]
+        return {"max_stress_Pa": el["max_stress_Pa"],
+                "utilization": el["utilization"],
+                "max_displacement_m": res["max_displacement_m"],
+                "warnings": res["warnings"],
+                "assumption": "Spar modelled as a cantilever beam from the "
+                              "fuselage, carrying the full lift at its tip "
+                              "(conservative); self-weight ignored"}
+
+    def _link_check(self, links, props_fn):
+        """Stage 9 structural check of robot arm links: each link as
+        a cantilever beam carrying the payload at its tip."""
+        out = []
+        for i, link in enumerate(links):
+            length = float(link["length_m"])
+            payload = float(link.get("payload_N", 0))
+            structure = {
+                "nodes": [{"id": "base", "x_m": 0, "y_m": 0, "z_m": 0},
+                          {"id": "tip", "x_m": length, "y_m": 0, "z_m": 0}],
+                "elements": [{"id": "link", "type": "beam", "n1": "base",
+                              "n2": "tip", "section": link["section"],
+                              "material_id": link["material_id"]}],
+                "supports": [{"node": "base", "ux": True, "uy": True, "uz": True,
+                              "rx": True, "ry": True, "rz": True}],
+                "loads": [{"case": "payload", "type": "point", "node": "tip",
+                           "fy_N": -payload}],
+                "combinations": []}
+            res = structuremod.analyze_static(structure, props_fn, case="payload")
+            el = res["elements"][0]
+            out.append({"link": i, "name": link.get("name", f"link {i + 1}"),
+                        "max_stress_Pa": el["max_stress_Pa"],
+                        "utilization": el["utilization"],
+                        "max_displacement_m": res["max_displacement_m"]})
+        return out
+
+    def _store_job(self, pid, user_id, solver, inputs, result, error=None):
+        meta = solversmod.SOLVER_REGISTRY[solver]
+        sid = dbmod.new_id("sim")
+        if error is not None:
+            self.conn.execute(
+                "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                " solver_version, status, inputs, results, created_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (sid, pid, user_id, solver, meta["engine"],
+                 "failed", json.dumps(inputs),
+                 json.dumps({"error": str(error)}), now_iso()))
+            self.conn.commit()
+            return self._send(200, {**self._sim_public(
+                self._own_simulation(sid, user_id)),
+                "note": "Analysis failed: " + str(error)})
+        self.conn.execute(
+            "INSERT INTO simulations(id, project_id, owner_id, solver,"
+            " solver_version, status, inputs, results, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (sid, pid, user_id, solver, meta["engine"],
+             "completed", json.dumps(inputs),
+             json.dumps({"method": meta["method"],
+                         "engine": meta["engine"],
+                         "assumptions": meta["assumptions"],
+                         "values": result}), now_iso()))
+        self.conn.commit()
+        return self._send(201, self._sim_public(
+            self._own_simulation(sid, user_id)))
+
+    def _route_aerospace(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        if len(parts) == 4 and parts[3] == "schema" and method == "GET":
+            return self._send(200, {"schema": aeromod.AEROSPACE_SCHEMA})
+        user = self._current_user()
+        if len(parts) == 4 and parts[3] == "validate" and method == "POST":
+            data = self._read_json()
+            design = data.get("design")
+            if not isinstance(design, dict):
+                raise ApiError(400, "Body must contain a design object")
+            errors = self._validate_aerospace_design(design)
+            return self._send(200, {"valid": not errors, "errors": errors})
+        if len(parts) == 4 and parts[3] == "analyze" and method == "POST":
+            data = self._read_json()
+            pid = str(data.get("project_id", "")).strip()
+            if not pid:
+                raise ApiError(400, "project_id is required")
+            self._own_project(pid, user["id"])
+            design = data.get("design")
+            if not isinstance(design, dict):
+                raise ApiError(400, "Body must contain a design object")
+            analysis = data.get("analysis") or {}
+            if not isinstance(analysis, dict):
+                raise ApiError(400, "analysis must be an object")
+            atype = str(analysis.get("type", "aircraft")).strip()
+            if atype not in ("aircraft", "rocket", "trajectory", "multirotor"):
+                raise ApiError(400, "analysis.type must be aircraft, rocket, "
+                                    "trajectory or multirotor")
+            solver = {"aircraft": "aero_aircraft", "rocket": "aero_rocket",
+                      "trajectory": "aero_trajectory",
+                      "multirotor": "aero_multirotor"}[atype]
+            inputs = {"design": design, "analysis": analysis}
+
+            def props_fn(mid):
+                return self._material_props(mid)
+
+            try:
+                if atype == "aircraft":
+                    result = aeromod.aircraft_performance(design)
+                    if design.get("spar"):
+                        result["spar_check"] = self._spar_check(
+                            design["spar"], props_fn)
+                elif atype == "rocket":
+                    result = {"delta_v": aeromod.rocket_delta_v(design["stages"])}
+                    if design.get("stability"):
+                        st = design["stability"]
+                        result["stability"] = aeromod.rocket_stability(
+                            st["components"], float(st["cg_x_m"]),
+                            float(st["diameter_m"]))
+                elif atype == "trajectory":
+                    result = aeromod.trajectory_2d(design)
+                else:  # multirotor
+                    result = aeromod.multirotor_hover(design)
+            except (ValueError, TypeError) as e:
+                return self._store_job(pid, user["id"], solver, inputs, None, error=e)
+            return self._store_job(pid, user["id"], solver, inputs, result)
+        raise ApiError(404, "Not found")
+
+    def _route_robotics(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        if len(parts) == 4 and parts[3] == "schema" and method == "GET":
+            return self._send(200, {"schema": robotmod.ROBOTICS_SCHEMA})
+        user = self._current_user()
+        if len(parts) == 4 and parts[3] == "validate" and method == "POST":
+            data = self._read_json()
+            design = data.get("design")
+            if not isinstance(design, dict):
+                raise ApiError(400, "Body must contain a design object")
+            errors = self._validate_robot_design(design)
+            return self._send(200, {"valid": not errors, "errors": errors})
+        if len(parts) == 4 and parts[3] == "analyze" and method == "POST":
+            data = self._read_json()
+            pid = str(data.get("project_id", "")).strip()
+            if not pid:
+                raise ApiError(400, "project_id is required")
+            self._own_project(pid, user["id"])
+            design = data.get("design")
+            if not isinstance(design, dict):
+                raise ApiError(400, "Body must contain a design object")
+            analysis = data.get("analysis") or {}
+            if not isinstance(analysis, dict):
+                raise ApiError(400, "analysis must be an object")
+            atype = str(analysis.get("type", "arm")).strip()
+            if atype not in ("arm", "control"):
+                raise ApiError(400, "analysis.type must be arm or control")
+            solver = "robot_arm" if atype == "arm" else "robot_control"
+            inputs = {"design": design, "analysis": analysis}
+
+            def props_fn(mid):
+                return self._material_props(mid)
+
+            try:
+                if atype == "arm":
+                    dh = design["dh"]
+                    joints = [float(q) for q in design["joints"]]
+                    result = {"fk": robotmod.fk_dh(dh, joints)}
+                    result["limit_violations"] = robotmod.joint_limit_violations(
+                        joints, design.get("limits"))
+                    if design.get("target_pos"):
+                        result["ik"] = robotmod.ik_dls(
+                            dh, [float(v) for v in design["target_pos"]],
+                            joints, limits=design.get("limits"))
+                    if design.get("motor"):
+                        # Stage 8 motor check (steady state).
+                        result["motor_check"] = solversmod.run_solver(
+                            "dc_motor", design["motor"], {})
+                    if design.get("links"):
+                        # Stage 9 structural check of the links.
+                        result["link_check"] = self._link_check(
+                            design["links"], props_fn)
+                    if design.get("obstacles"):
+                        positions = result["fk"]["positions"]
+                        caps = []
+                        for i in range(len(dh)):
+                            caps.append({"a": positions[i], "b": positions[i + 1],
+                                         "radius_m": float(
+                                             design.get("link_radius_m", 0.05)),
+                                         "name": f"link {i + 1}"})
+                        result["collisions"] = robotmod.check_collisions(
+                            caps, design["obstacles"])
+                else:  # control
+                    result = {}
+                    if design.get("pid"):
+                        result["pid"] = robotmod.pid_simulate(design["pid"])
+                    if design.get("trajectory"):
+                        tr = design["trajectory"]
+                        result["trajectory"] = robotmod.cubic_trajectory(
+                            [float(v) for v in tr["q0"]],
+                            [float(v) for v in tr["q1"]],
+                            float(tr["duration_s"]),
+                            dt=float(tr.get("dt", 0.05)))
+                    if not result:
+                        raise ValueError("control analysis needs a pid and/or "
+                                         "trajectory design")
+            except (ValueError, TypeError, KeyError) as e:
+                return self._store_job(pid, user["id"], solver, inputs, None, error=e)
+            return self._store_job(pid, user["id"], solver, inputs, result)
         raise ApiError(404, "Not found")
 
     def _route_projects(self, path, method, query):

@@ -248,3 +248,46 @@ solvers (`structural_static`, `structural_modal`,
 `structural_buckling`) are in the registry too, but they only
 run through the structures endpoint above — posting them to
 `/api/v1/simulations` records a failed job explaining that.
+
+## Aerospace and robotics (Stage 10)
+
+- `GET /api/v1/aerospace/schema`, `GET /api/v1/robotics/schema` — public.
+  The design schemas and the modelling notes.
+- `POST /api/v1/aerospace/validate`, `POST /api/v1/robotics/validate` —
+  auth. Body `{design}`; returns `{valid, errors}`.
+- `POST /api/v1/aerospace/analyze` — auth, owner-scoped project. Body
+  `{project_id, design, analysis}` where `analysis` is
+  `{type: "aircraft" | "rocket" | "trajectory" | "multirotor"}`. Runs
+  the aerospace models and stores the result as a simulation job with
+  solver `aero_aircraft`, `aero_rocket`, `aero_trajectory` or
+  `aero_multirotor` (201 on success, 200 with status `failed` on an
+  analysis error). An aircraft design may carry a `spar`, which is
+  checked with the Stage 9 structural solver; a rocket design may
+  carry `stability` (Barrowman) alongside its `stages`.
+- `POST /api/v1/robotics/analyze` — auth, owner-scoped project. Body
+  `{project_id, design, analysis}` where `analysis` is
+  `{type: "arm" | "control"}`. `arm` runs FK, joint-limit checks,
+  DLS IK (when `target_pos` is present), the Stage 8 motor check
+  (when `motor` is present), the Stage 9 link check (when `links`
+  is present) and collision checks (when `obstacles` is present).
+  `control` runs the PID simulation (when `pid` is present) and the
+  cubic trajectory (when `trajectory` is present). Stores a job with
+  solver `robot_arm` or `robot_control`.
+- `GET /api/v1/projects/{id}/aerospace`, `GET /api/v1/projects/{id}/robot`
+  — auth, owner-scoped. Returns `{project_id, design}` (an empty design
+  when none is saved yet).
+- `PUT /api/v1/projects/{id}/aerospace`, `PUT /api/v1/projects/{id}/robot`
+  — auth, owner-scoped. Body `{design, base_version?}`; validates the
+  design, increments its version, returns it. A `base_version` that
+  does not match the stored version returns 409.
+
+Stage 10 adds 19 scalar solvers to the same registry and job API
+(no new endpoints): `airfoil_lift`, `wing_lift_drag`, `stall_speed`,
+`aircraft_performance`, `multirotor_hover`, `rocket_delta_v`,
+`rocket_thrust`, `rocket_stability`, `aircraft_cg`,
+`forward_kinematics`, `ik_2r`, `ik_3r`, `ik_dls`, `cubic_trajectory`,
+`trapezoidal_profile`, `collision_check`, `pid_control`,
+`diff_drive_fk`, `diff_drive_ik`, `diff_drive_odometry`. The design
+solvers (`aero_*`, `robot_*`) are in the registry too, but they only
+run through the analyze endpoints above — posting them to
+`/api/v1/simulations` records a failed job explaining that.

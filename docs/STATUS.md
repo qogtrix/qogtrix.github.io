@@ -414,3 +414,39 @@ actually built and checked. Anything labelled "Stage 2" is not done.
 - [ ] First-order, linear-elastic only: no P-delta, no system
       buckling, no connection or foundation design
 - [ ] Nothing here is validated for construction
+
+# Stage 10 — Aerospace & Robotics Engineering Laboratory (19 Nov 2026)
+
+## Completed in Stage 10
+
+- [x] Aerospace workspace: aircraft designer (airfoil, wing,
+      fuselage, tail, CG, static margin), 3D vehicle view,
+      performance analysis, airfoil polar chart
+- [x] Rocket tools: multi-stage delta-v, thrust, Barrowman
+      stability, 2-D point-mass trajectory with altitude chart
+- [x] Multirotor: momentum-theory hover power and endurance
+- [x] Robotics workspace: DH arm designer, live joint sliders,
+      FK/IK, joint limits, collision detection, 3D arm view
+- [x] Robot control: PID step response of a DC motor, cubic
+      and trapezoidal trajectories, differential-drive
+      kinematics and odometry
+- [x] Cross-lab integration: wing spar (Stage 9), robot motor
+      (Stage 8), robot links (Stage 9) — all through the real
+      engines, not copies
+- [x] AI assistants for both labs: read only real results
+- [x] Reports: HTML report, results CSV, print-to-PDF
+- [x] Testing: 6 demo projects verified against analytical
+      references; 140 new tests; all earlier suites green
+
+## Honest limits
+
+- [ ] No XFOIL / AVL / OpenVSP (not installed) — thin-airfoil
+      and lifting-line theory only; no panel method or CFD
+- [ ] No PyBullet / ROS / MoveIt (not installed) — no full
+      robot dynamics, motion planning or simulated sensors
+- [ ] Trajectory is a 2-D point mass; no 6-DOF flight dynamics,
+      no guidance, no staging separation dynamics
+- [ ] Spar/link checks are single cantilever beams, not a full
+      airframe or arm assembly analysis
+- [ ] Nothing here is flight-certified or validated for a real
+      robot

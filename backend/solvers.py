@@ -15,6 +15,9 @@ silent substitution or a guessed value.
 """
 import math
 
+import aerospace as aeromod
+import robotics as robotmod
+
 # ---------------------------------------------------------------- solvers
 SOLVER_REGISTRY = {
     "cantilever_beam": {
@@ -611,6 +614,303 @@ SOLVER_REGISTRY = {
             "available substitute, labelled as such.",
         ],
     },
+    "airfoil_lift": {
+        "label": "Airfoil lift and drag (thin-airfoil theory)",
+        "method": "analytical",
+        "engine": "python-aero (thin-airfoil theory, own implementation)",
+        "status": "available",
+        "inputs": ["airfoil_code", "alpha_deg", "cd0", "k", "cl_max"],
+        "outputs": ["cl", "cd", "alpha0_deg", "stalled"],
+        "requires": [],
+        "assumptions": [
+            "Thin-airfoil theory: Cl = 2*pi*(alpha - alpha0); small angles, attached flow, incompressible",
+            "Drag polar Cd = Cd0 + k*Cl^2; Cd0/k/Clmax are typical published values for table airfoils, required inputs otherwise",
+            "XFOIL / AVL / OpenVSP are not installed in this environment (checked 19 Nov 2026)",
+        ],
+    },
+    "wing_lift_drag": {
+        "label": "Finite wing lift and drag (lifting line)",
+        "method": "analytical",
+        "engine": "python-aero (lifting-line correction, own implementation)",
+        "status": "available",
+        "inputs": ["airfoil_cl", "alpha_deg", "aspect_ratio", "oswald_e", "airfoil_cd"],
+        "outputs": ["cl", "cd", "cdi", "lift_slope_per_rad"],
+        "requires": [],
+        "assumptions": [
+            "Lifting-line slope correction a = a0 / (1 + a0/(pi*e*AR)); induced drag Cdi = Cl^2/(pi*e*AR)",
+            "Rectangular wing, no twist or taper correction",
+        ],
+    },
+    "stall_speed": {
+        "label": "Stall speed",
+        "method": "analytical",
+        "engine": "python-aero",
+        "status": "available",
+        "inputs": ["mass_kg", "wing_area_m2", "cl_max", "altitude_m"],
+        "outputs": ["stall_speed_m_s", "stall_speed_kmh"],
+        "requires": [],
+        "assumptions": ["Level flight at Clmax; ISA density at the given altitude"],
+    },
+    "aircraft_performance": {
+        "label": "Fixed-wing aircraft performance",
+        "method": "analytical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["mass_kg", "wing_area_m2", "span_m", "oswald_e", "cd0", "k", "cl_max", "cruise_speed_m_s", "altitude_m", "prop_efficiency", "components", "mac_m", "x_ac_wing_m"],
+        "outputs": ["cl_cruise", "cd_cruise", "lift_N", "drag_N", "lift_to_drag", "stall_speed_m_s", "thrust_required_N", "power_required_W", "range_km", "endurance_h", "cg_x_m", "static_margin"],
+        "requires": [],
+        "assumptions": [
+            "Steady level flight; ISA atmosphere; drag polar Cd = Cd0 + k*Cl^2 + induced drag",
+            "Breguet range (fuel) or battery energy (electric); component masses must sum to mass_kg within 5%",
+            "Static margin from wing aerodynamic centre plus tail-volume shift; simplified, not a full stability analysis",
+        ],
+    },
+    "multirotor_hover": {
+        "label": "Multirotor hover (momentum theory)",
+        "method": "analytical",
+        "engine": "python-aero (momentum theory, own implementation)",
+        "status": "available",
+        "inputs": ["mass_kg", "n_rotors", "rotor_diameter_m", "altitude_m", "figure_of_merit", "battery_energy_Wh"],
+        "outputs": ["thrust_per_rotor_N", "disk_loading_N_m2", "induced_velocity_m_s", "hover_power_W", "hover_endurance_h"],
+        "requires": [],
+        "assumptions": ["Momentum theory (ideal induced power / figure of merit); no ground effect, no climb/descent"],
+    },
+    "rocket_delta_v": {
+        "label": "Rocket delta-v (Tsiolkovsky, multi-stage)",
+        "method": "analytical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["stages"],
+        "outputs": ["total_delta_v_m_s", "stages"],
+        "requires": [],
+        "assumptions": ["Tsiolkovsky equation per stage, serial staging; no gravity or drag losses (those need the trajectory solver)"],
+    },
+    "rocket_thrust": {
+        "label": "Rocket thrust",
+        "method": "analytical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["mdot_kg_s", "isp_s", "exhaust_velocity_m_s", "pe_Pa", "pa_Pa", "Ae_m2"],
+        "outputs": ["thrust_N", "momentum_thrust_N", "pressure_thrust_N", "effective_isp_s"],
+        "requires": [],
+        "assumptions": ["Steady flow; thrust = mdot*ve + (pe-pa)*Ae"],
+    },
+    "rocket_stability": {
+        "label": "Rocket stability (Barrowman centre of pressure)",
+        "method": "analytical",
+        "engine": "python-aero (Barrowman method, own implementation)",
+        "status": "available",
+        "inputs": ["components", "cg_x_m", "diameter_m"],
+        "outputs": ["cp_x_m", "total_cn_alpha", "stability_calibres", "stable", "margin_ok"],
+        "requires": [],
+        "assumptions": [
+            "Barrowman method: subsonic, small angles; nose + fins only (body lift ignored); straight fin leading edges",
+            "A margin of 1.0-2.5 calibres is the usual rule of thumb, not a certification",
+        ],
+    },
+    "aircraft_cg": {
+        "label": "Centre of gravity (component masses)",
+        "method": "analytical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["components"],
+        "outputs": ["total_mass_kg", "cg"],
+        "requires": [],
+        "assumptions": ["Point masses at the given coordinates"],
+    },
+    "forward_kinematics": {
+        "label": "Robot forward kinematics (Denavit-Hartenberg)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["dh", "joints"],
+        "outputs": ["end_position", "positions"],
+        "requires": [],
+        "assumptions": ["Standard DH parameters; rigid links; joint angles in radians"],
+    },
+    "ik_2r": {
+        "label": "Inverse kinematics, planar 2R arm (analytic)",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["l1", "l2", "target", "elbow"],
+        "outputs": ["joints", "reachable", "elbow"],
+        "requires": [],
+        "assumptions": ["Planar 2R arm; unreachable targets raise an error with the workspace limits"],
+    },
+    "ik_3r": {
+        "label": "Inverse kinematics, planar 3R arm (analytic)",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["l1", "l2", "l3", "target", "phi"],
+        "outputs": ["joints", "reachable"],
+        "requires": [],
+        "assumptions": ["Planar 3R arm with a specified end-effector orientation phi (rad)"],
+    },
+    "ik_dls": {
+        "label": "Inverse kinematics, general arm (damped least squares)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["dh", "target_pos", "q0", "limits", "max_iter", "damping"],
+        "outputs": ["joints", "residual_m", "iterations", "converged", "limit_violations"],
+        "requires": [],
+        "assumptions": [
+            "Damped least-squares iteration on the geometric Jacobian; joint limits are clamped during the iteration",
+            "A non-converged result is reported with its residual, never hidden",
+        ],
+    },
+    "cubic_trajectory": {
+        "label": "Joint-space cubic trajectory",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["q0", "q1", "duration_s", "dt"],
+        "outputs": ["t", "q", "qd", "qdd", "max_velocity", "max_acceleration"],
+        "requires": [],
+        "assumptions": ["Cubic polynomial, zero end velocities; no torque or velocity-limit checking (check limits separately)"],
+    },
+    "trapezoidal_profile": {
+        "label": "Trapezoidal velocity profile (one joint)",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["distance", "vmax", "amax", "dt"],
+        "outputs": ["t", "x", "v", "a", "peak_velocity", "duration_s"],
+        "requires": [],
+        "assumptions": ["Single-direction move; triangular profile when the distance is too short to reach vmax"],
+    },
+    "collision_check": {
+        "label": "Collision check (capsules vs spheres / boxes)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["links", "obstacles"],
+        "outputs": ["collisions", "n_collisions"],
+        "requires": [],
+        "assumptions": ["Links are capsules (segment + radius); obstacles are spheres or axis-aligned boxes; boxes are checked against their edges plus endpoint containment"],
+    },
+    "pid_control": {
+        "label": "PID control of a DC motor (step response)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["R_ohm", "L_H", "Kt_Nm_per_A", "Ke_V_per_rad_s", "J_kg_m2", "b_Nm_s", "setpoint_rad", "kp", "ki", "kd", "voltage_limit_V", "dt_s", "duration_s", "load_torque_Nm"],
+        "outputs": ["final_error_rad", "overshoot_percent", "settling_time_s", "series"],
+        "requires": [],
+        "assumptions": [
+            "DC motor plant (Stage 8 model): L di/dt + R i = V - Ke*w; J dw/dt + b w = Kt*i - load",
+            "Discrete PID with voltage saturation and integral anti-windup; metrics are computed from the simulated series",
+        ],
+    },
+    "diff_drive_fk": {
+        "label": "Differential-drive forward kinematics (one step)",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["wheel_radius_m", "track_m", "v_left_m_s", "v_right_m_s", "pose", "dt_s"],
+        "outputs": ["pose", "v_m_s", "omega_rad_s"],
+        "requires": [],
+        "assumptions": ["No wheel slip; unicycle model"],
+    },
+    "diff_drive_ik": {
+        "label": "Differential-drive inverse kinematics",
+        "method": "analytical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["wheel_radius_m", "track_m", "v_m_s", "omega_rad_s"],
+        "outputs": ["v_left_m_s", "v_right_m_s"],
+        "requires": [],
+        "assumptions": ["No wheel slip; unicycle model"],
+    },
+    "diff_drive_odometry": {
+        "label": "Differential-drive odometry (wheel-speed trail)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["wheel_radius_m", "track_m", "left_speeds", "right_speeds", "dt_s", "pose0"],
+        "outputs": ["final_pose", "trail"],
+        "requires": [],
+        "assumptions": ["No wheel slip; odometry drifts in the real world — this is dead reckoning only"],
+    },
+    "aero_aircraft": {
+        "label": "Aircraft design analysis (full design document)",
+        "method": "numerical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["performance", "spar_check"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/aerospace/analyze, not the scalar solver endpoint",
+            "Includes the Stage 9 structural check of the wing spar when the design carries one",
+        ],
+    },
+    "aero_rocket": {
+        "label": "Rocket design analysis (full design document)",
+        "method": "numerical",
+        "engine": "python-aero (own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["delta_v", "stability", "trajectory"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/aerospace/analyze, not the scalar solver endpoint",
+            "Trajectory is a 2-D point-mass model; nothing here is flight-certified",
+        ],
+    },
+    "aero_trajectory": {
+        "label": "Rocket trajectory simulation",
+        "method": "numerical",
+        "engine": "python-aero (RK2 point-mass, own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["apogee_m", "max_velocity_m_s", "range_m", "flight_time_s", "series"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/aerospace/analyze, not the scalar solver endpoint",
+            "2-D point mass: gravity, ISA drag, thrust profile, mass loss. No wind, no guidance.",
+        ],
+    },
+    "aero_multirotor": {
+        "label": "Multirotor design analysis (full design document)",
+        "method": "numerical",
+        "engine": "python-aero (momentum theory, own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["thrust_per_rotor_N", "hover_power_W", "hover_endurance_h"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/aerospace/analyze, not the scalar solver endpoint",
+            "Momentum theory; no ground effect, no climb/descent",
+        ],
+    },
+    "robot_arm": {
+        "label": "Robot arm analysis (full design document)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["fk", "motor_check", "link_check", "collisions"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/robotics/analyze, not the scalar solver endpoint",
+            "Includes the Stage 8 motor check and the Stage 9 structural check of the links when the design carries them",
+        ],
+    },
+    "robot_control": {
+        "label": "Robot control analysis (PID + trajectory)",
+        "method": "numerical",
+        "engine": "python-robotics (own implementation)",
+        "status": "available",
+        "inputs": ["design"],
+        "outputs": ["pid", "trajectory"],
+        "requires": [],
+        "assumptions": [
+            "Runs through POST /api/v1/robotics/analyze, not the scalar solver endpoint",
+        ],
+    },
 }
 
 FLUIDS = {
@@ -682,6 +982,14 @@ def run_solver(solver, inputs, material_props):
     if solver.startswith("structural_"):
         raise ValueError("structural solvers run through "
                          "POST /api/v1/structures/analyze, not the scalar "
+                         "solver endpoint")
+    if solver.startswith("aero_"):
+        raise ValueError("aerospace design solvers run through "
+                         "POST /api/v1/aerospace/analyze, not the scalar "
+                         "solver endpoint")
+    if solver.startswith("robot_"):
+        raise ValueError("robotics design solvers run through "
+                         "POST /api/v1/robotics/analyze, not the scalar "
                          "solver endpoint")
     # Material requirements.
     props = {}
@@ -1268,5 +1576,122 @@ def run_solver(solver, inputs, material_props):
             total += fac * float(v)
         return {"factored_total_N": total, "factors": factors,
                 "combination": name}
+    if solver == "airfoil_lift":
+        return aeromod.airfoil_coefficients(
+            inputs.get("airfoil_code", "naca2412"),
+            float(inputs.get("alpha_deg", 0)),
+            cd0=inputs.get("cd0"), k=inputs.get("k"), cl_max=inputs.get("cl_max"))
+    if solver == "wing_lift_drag":
+        return aeromod.wing_coefficients(
+            _need_number(inputs, "airfoil_cl", positive=False),
+            float(inputs.get("alpha_deg", 0)),
+            _need_number(inputs, "aspect_ratio"),
+            float(inputs.get("oswald_e", 0.8)),
+            airfoil_cd=inputs.get("airfoil_cd"))
+    if solver == "stall_speed":
+        m = _need_number(inputs, "mass_kg")
+        S = _need_number(inputs, "wing_area_m2")
+        cl_max = _need_number(inputs, "cl_max")
+        rho = aeromod.isa_density(float(inputs.get("altitude_m", 0)))
+        vs = math.sqrt(2 * m * aeromod.G0 / (rho * S * cl_max))
+        return {"stall_speed_m_s": vs, "stall_speed_kmh": vs * 3.6,
+                "air_density_kg_m3": rho}
+    if solver == "aircraft_performance":
+        return aeromod.aircraft_performance(inputs)
+    if solver == "multirotor_hover":
+        return aeromod.multirotor_hover(inputs)
+    if solver == "rocket_delta_v":
+        stages = inputs.get("stages")
+        if not isinstance(stages, list) or not stages:
+            raise ValueError("stages must be a non-empty list")
+        return aeromod.rocket_delta_v(stages)
+    if solver == "rocket_thrust":
+        return aeromod.rocket_thrust(inputs)
+    if solver == "rocket_stability":
+        comps = inputs.get("components")
+        if not isinstance(comps, list) or not comps:
+            raise ValueError("components must be a non-empty list")
+        return aeromod.rocket_stability(
+            comps, _need_number(inputs, "cg_x_m", positive=False),
+            _need_number(inputs, "diameter_m"))
+    if solver == "aircraft_cg":
+        comps = inputs.get("components")
+        if not isinstance(comps, list) or not comps:
+            raise ValueError("components must be a non-empty list")
+        return aeromod.centre_of_gravity(comps)
+    if solver == "forward_kinematics":
+        dh = inputs.get("dh")
+        joints = inputs.get("joints")
+        if not isinstance(dh, list) or not isinstance(joints, list):
+            raise ValueError("dh and joints are required")
+        fk = robotmod.fk_dh(dh, [float(q) for q in joints])
+        return {"end_position": fk["end_position"],
+                "positions": fk["positions"],
+                "end_transform": fk["end_transform"]}
+    if solver == "ik_2r":
+        return robotmod.ik_2r(
+            _need_number(inputs, "l1"), _need_number(inputs, "l2"),
+            inputs.get("target"), inputs.get("elbow", "down"))
+    if solver == "ik_3r":
+        return robotmod.ik_3r(
+            _need_number(inputs, "l1"), _need_number(inputs, "l2"),
+            _need_number(inputs, "l3"), inputs.get("target"),
+            float(inputs.get("phi", 0)))
+    if solver == "ik_dls":
+        dh = inputs.get("dh")
+        target = inputs.get("target_pos")
+        q0 = inputs.get("q0")
+        if not isinstance(dh, list) or not isinstance(target, list) or not isinstance(q0, list):
+            raise ValueError("dh, target_pos and q0 are required")
+        return robotmod.ik_dls(
+            dh, [float(v) for v in target], [float(v) for v in q0],
+            limits=inputs.get("limits"),
+            max_iter=int(inputs.get("max_iter", 200)),
+            damping=float(inputs.get("damping", 0.05)))
+    if solver == "cubic_trajectory":
+        q0 = inputs.get("q0"); q1 = inputs.get("q1")
+        if not isinstance(q0, list) or not isinstance(q1, list):
+            raise ValueError("q0 and q1 are required")
+        return robotmod.cubic_trajectory(
+            [float(v) for v in q0], [float(v) for v in q1],
+            _need_number(inputs, "duration_s"),
+            dt=float(inputs.get("dt", 0.05)))
+    if solver == "trapezoidal_profile":
+        return robotmod.trapezoidal_profile(
+            float(inputs.get("distance", 0)),
+            _need_number(inputs, "vmax"), _need_number(inputs, "amax"),
+            dt=float(inputs.get("dt", 0.05)))
+    if solver == "collision_check":
+        links = inputs.get("links"); obs = inputs.get("obstacles")
+        if not isinstance(links, list) or not isinstance(obs, list):
+            raise ValueError("links and obstacles are required")
+        hits = robotmod.check_collisions(links, obs)
+        return {"collisions": hits, "n_collisions": len(hits)}
+    if solver == "pid_control":
+        return robotmod.pid_simulate(inputs)
+    if solver == "diff_drive_fk":
+        return robotmod.diff_drive_fk(
+            _need_number(inputs, "wheel_radius_m"),
+            _need_number(inputs, "track_m"),
+            float(inputs.get("v_left_m_s", 0)),
+            float(inputs.get("v_right_m_s", 0)),
+            inputs.get("pose", [0.0, 0.0, 0.0]),
+            _need_number(inputs, "dt_s"))
+    if solver == "diff_drive_ik":
+        return robotmod.diff_drive_ik(
+            _need_number(inputs, "wheel_radius_m"),
+            _need_number(inputs, "track_m"),
+            float(inputs.get("v_m_s", 0)),
+            float(inputs.get("omega_rad_s", 0)))
+    if solver == "diff_drive_odometry":
+        left = inputs.get("left_speeds"); right = inputs.get("right_speeds")
+        if not isinstance(left, list) or not isinstance(right, list):
+            raise ValueError("left_speeds and right_speeds are required")
+        return robotmod.diff_drive_odometry(
+            _need_number(inputs, "wheel_radius_m"),
+            _need_number(inputs, "track_m"),
+            [float(v) for v in left], [float(v) for v in right],
+            _need_number(inputs, "dt_s"),
+            pose0=tuple(inputs.get("pose0", (0.0, 0.0, 0.0))))
     raise ValueError(f"no implementation for solver: {solver}")
 

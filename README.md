@@ -247,3 +247,35 @@ docs/*.md
   construction. See `docs/STRUCTURAL.md` and
   `docs/TEST_RESULTS_STAGE9.md`.
 - Tests: `backend/test_stage9.py` **80/80**.
+
+## Stage 10 — Aerospace & Robotics Engineering Laboratory (19 Nov 2026)
+
+- **Real aerospace models** (`backend/aerospace.py`): NACA
+  4-digit airfoils + thin-airfoil theory, lifting-line wing
+  corrections, aircraft performance (stall speed, L/D,
+  Breguet range, static margin), multirotor hover
+  (momentum theory), Tsiolkovsky multi-stage delta-v,
+  Barrowman stability, 2-D point-mass trajectories.
+  XFOIL / AVL / OpenVSP are not installed on this machine,
+  so these are our own models — documented, not hidden.
+- **Real robotics models** (`backend/robotics.py`):
+  Denavit-Hartenberg FK, analytic 2R/3R IK, damped
+  least-squares IK with joint limits, cubic and trapezoidal
+  trajectories, capsule collision detection, PID control of
+  a DC motor, differential-drive kinematics and odometry.
+  PyBullet / ROS / MoveIt are not installed.
+- **Workspaces** (`aerospace.html`, `robotics.html`): 3D
+  vehicle and arm views, parameter editors, performance /
+  rocket / control panels, AI assistants that read only
+  real results, reports (HTML, CSV, print-to-PDF).
+- **Cross-lab integration:** wing spar (Stage 9), robot
+  motor (Stage 8), robot links (Stage 9) — through the
+  real engines, not copies.
+- **6 demo projects**: fixed-wing aircraft, multirotor
+  drone, multi-stage rocket, 4-DOF robot arm, wheeled
+  robot, robot assembly with motors and sensors.
+- **Honest limits:** no panel method or CFD; no full robot
+  dynamics; nothing flight-certified or validated for a
+  real robot. See `docs/AEROSPACE_ROBOTICS.md` and
+  `docs/TEST_RESULTS_STAGE10.md`.
+- Tests: `backend/test_stage10.py` **140/140**.

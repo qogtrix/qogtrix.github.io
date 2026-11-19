@@ -44,12 +44,14 @@
       <div class="icon" style="font-size:2rem">🤖</div>
       <h1>Robotics Engineering</h1>
       <p>Arms, actuators and motion.</p>
-      <p>Robot arms, actuators, sensors and motion. Stage 1: arm geometry preview and actuator library. Stage 2: forward/inverse kinematics and dynamics.</p>
+      <p>Robot arms, actuators, sensors and motion. Stage 1: arm geometry preview and actuator library. Stage 10: real kinematics and control — Denavit-Hartenberg FK, analytic and damped least-squares IK, cubic/trapezoidal trajectories, capsule collision checks, DC-motor PID, and differential-drive odometry.</p>
+    <p><a class="button primary" href="../robotics.html">Open the Robotics Workspace →</a></p>
+    <p class="small muted">Stage 10: robot arms, mobile robots, motor and link checks (Stages 8 and 9), and an AI assistant that reads only real results. Conceptual only — nothing here is validated for a real robot.</p>
     </section>
 
     <div class="grid cols-2">
       <div class="card"><h3>✓ Works in Stage 1</h3><ul><li>3D robot-arm geometry preview</li><li>Actuator library (servo, stepper)</li><li>Project workspace</li></ul></div>
-      <div class="card"><h3>Planned — Stage 2</h3><ul><li>Forward / inverse kinematics</li><li>Dynamics and torque check</li></ul><p class="small muted">These are not built yet. No button on this page pretends otherwise.</p></div>
+      <div class="card"><h3>✓ Built in Stage 10</h3><ul><li>DH forward kinematics, analytic 2R/3R IK and damped least-squares IK with joint limits</li><li>Cubic and trapezoidal trajectories, capsule collision detection, PID motor control</li><li>Differential-drive kinematics and odometry; motor (Stage 8) and link (Stage 9) checks</li></ul><p class="small muted">Conceptual only — PyBullet / ROS / MoveIt are not installed, so there is no full dynamics simulation, and nothing here is validated for a real robot.</p></div>
     </div>
 
     <h2>3D preview — arm</h2>
@@ -85,8 +87,8 @@
     </table></div>
 
     <h2>Simulation</h2>
-    <div class="notice warn">⚠ <strong>Stage 2 — Not yet implemented.</strong> No solver is installed in Stage 1, so there is no result to show. The button below is disabled on purpose; Stage 2 will add a real open-source solver behind it, and results will only appear once that solver has actually run. See <a href="../docs/STATUS.md">STATUS.md</a>.</div>
-    <div class="btn-row"><button disabled>Run simulation — Stage 2</button></div>
+    <div class="notice">✓ <strong>Stage 10 — Implemented.</strong> The Robotics Workspace runs real calculations on the server: FK/IK, trajectories, collision checks, PID step response and mobile-robot odometry, validated against hand-computed references (see <a href="../docs/TEST_RESULTS_STAGE10.md">TEST_RESULTS_STAGE10.md</a>). No PyBullet / ROS / MoveIt is installed on this machine, so there is no full dynamics simulation — and no result here validates a real robot.</div>
+    <div class="btn-row"><a class="button primary" href="../robotics.html">Open the Robotics Workspace →</a></div>
     <p class="small muted"><a href="../index.html">← Back to dashboard</a> · <a href="../workspace.html">Open full 3D workspace →</a></p>
   </main>
   <footer>AI Engineering Laboratory · Stage 1 Foundation · Robotics Engineering</footer>

@@ -72,7 +72,7 @@ def main():
     try:
         # --- schema + health ---
         s, h = req(base, "GET", "/health")
-        check("health endpoint (stage 5)", s == 200 and h.get("stage") in (5, 6, 7, 8, 9), f"HTTP {s}")
+        check("health endpoint (stage 5)", s == 200 and h.get("stage") in (5, 6, 7, 8, 9, 10), f"HTTP {s}")
         s, sc = req(base, "GET", "/api/v1/model/schema")
         check("model schema lists primitives, components, units",
               s == 200 and "box" in sc["schema"]["primitive_kinds"]

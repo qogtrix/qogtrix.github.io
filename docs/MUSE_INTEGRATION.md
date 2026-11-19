@@ -265,3 +265,41 @@ volume the API returns as null (booleans, imported meshes).
   compliance exists in this lab (IS 800 / IS 456 / AISC /
   Eurocodes not implemented), no connection or foundation
   design, no P-delta. Say so whenever a result is reported.
+
+## Aerospace and robotics (Stage 10) — structured tools for Muse
+
+- **Design an aircraft from a request:** translate the request
+  into the aircraft inputs (mass, wing area, span, Oswald e,
+  Cd0, k, Clmax, cruise speed, altitude, prop efficiency,
+  battery or fuel, component masses for CG, MAC, wing AC,
+  tail volume). Run `POST /api/v1/aerospace/analyze` with
+  `analysis: {type: "aircraft"}`. Read lift/drag, L/D, stall
+  speed, range/endurance, CG and static margin — and the
+  `spar_check` when the design carries a spar (Stage 9).
+  If cruise Cl exceeds Clmax the job fails with the reason;
+  say so and suggest a slower cruise, a bigger wing, or a
+  higher-Clmax section.
+- **Design a rocket:** stages go through `rocket_delta_v`
+  (or the `rocket` analysis, which adds Barrowman stability
+  when the design carries it). The trajectory analysis takes
+  the trajectory config itself. Quote delta-v without gravity
+  and drag losses only if you also quote the trajectory
+  result — the two numbers answer different questions.
+- **Design a robot arm:** DH rows are `{a, alpha, d, theta,
+  type: "revolute"}` with angles in radians in the API
+  (the UI converts from degrees). Run the `arm` analysis for
+  FK, IK to a target, the Stage 8 motor check and the Stage 9
+  link check in one call. If IK does not converge, report the
+  residual and the reach — do not invent a joint solution.
+- **Control:** PID gains go through the `control` analysis or
+  the `pid_control` scalar solver. Compare P-only against PI
+  to explain steady-state error; the motor model is the Stage 8
+  one, so torque and speed numbers must agree with `dc_motor`.
+- **Save the design:** `PUT /api/v1/projects/{id}/aerospace`
+  or `.../robot` with `base_version` from the last GET; a 409
+  means the design changed elsewhere — reload and re-apply.
+- **Never call an aircraft flight-ready or a robot safe.**
+  The models are thin-airfoil / lifting-line / point-mass /
+  single-joint-PID simplifications. No XFOIL, AVL, OpenVSP,
+  PyBullet, ROS or MoveIt is installed. Say so whenever a
+  result is reported.
