@@ -139,3 +139,46 @@ actually built and checked. Anything labelled "Stage 2" is not done.
       gallery shows published design data instead)
 - [ ] Live Postgres RLS execution (policies defined in schema.sql;
       SQLite + backend checks are the tested layers)
+
+---
+
+# Stage 4 — Universal Material Database (19 Nov 2026)
+
+## Completed in Stage 4
+
+- [x] 10 material categories with counts (metals 12, polymers 7,
+      ceramics 4, composites 2, electrical 2, magnetic 2,
+      thermal-insulation 3, aerospace 2, construction 2, advanced 2)
+- [x] 38 graded materials with 16 properties each, standards and
+      sources where available; missing values are null, never invented
+- [x] Data quality: source/reference, standard, units, test
+      conditions, temperature range, confidence (verified/typical/
+      estimated), missing-property indicators on every entry
+- [x] Library interface: search, category chips, property filters,
+      sort, individual material pages, favorites, select-for-project
+- [x] Comparison engine: 2–4 materials, 18 rows incl. derived
+      strength-to-weight and specific stiffness, best-value
+      highlighting, cost and corrosion
+- [x] Recommender: hard filters + transparent scoring (50/30/20),
+      reasons and trade-offs per candidate
+- [x] Normalized DB: materials + material_properties +
+      material_favorites; seeded once from materials.json;
+      material data separate from user projects
+- [x] Tests: backend/test_stage4.py — 42/42 passed; Stage 2 and
+      Stage 3 suites still 34/34 each
+- [x] Docs: MATERIALS.md (data quality + sources + architecture),
+      TEST_RESULTS_STAGE4.md, api-spec.md, MUSE_INTEGRATION.md,
+      ARCHITECTURE.md, STATUS.md, README.md
+
+## Honest limits
+
+- [ ] The library is a 38-material **sample**, not a complete
+      universal database. Counts are stated on the library page
+      itself; do not claim completeness.
+- [ ] Some properties are sparse by design: compressive strength
+      is recorded for 11/38, fatigue limit for 15/38, fracture
+      toughness for 16/38 — the gaps are shown, not filled.
+- [ ] Cost is a relative 1–5 index, not a price. No supplier
+      pricing is stored.
+- [ ] No admin UI for adding materials yet — additions are made
+      by appending to data/materials.json (documented).

@@ -33,7 +33,159 @@ def init_db(conn: sqlite3.Connection) -> None:
     sql = sql.split("-- === POSTGRES RLS")[0]
     conn.executescript(sql)
     _migrate(conn)
+    seed_materials(conn)
     conn.commit()
+
+
+# -- Stage 4: normalized material database ---------------------------
+# The authoritative material content is data/materials.json. On first
+# run the tables are seeded from it; on later runs the tables are
+# the source of truth, so edits made through a future admin UI persist.
+# A NULL property means "not available" — never zero, never invented.
+PROPERTY_UNITS = {
+    "density_kg_m3": "kg/m³", "tensile_strength_mpa": "MPa",
+    "compressive_strength_mpa": "MPa", "yield_strength_mpa": "MPa",
+    "elastic_modulus_gpa": "GPa", "poisson_ratio": "—",
+    "shear_modulus_gpa": "GPa", "thermal_conductivity_w_mk": "W/m·K",
+    "specific_heat_j_kgk": "J/kg·K", "thermal_expansion_um_mk": "µm/m·K",
+    "melting_point_c": "°C", "electrical_resistivity_ohm_m": "Ω·m",
+    "electrical_conductivity_pct_iacs": "% IACS",
+    "fatigue_limit_mpa": "MPa",
+    "fracture_toughness_mpa_sqrt_m": "MPa√m",
+}
+PROPERTY_KEYS = list(PROPERTY_UNITS.keys()) + ["hardness"]
+
+
+def load_materials_json() -> dict:
+    path = os.path.join(ROOT, "data", "materials.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"materials": []}
+
+
+def seed_materials(conn: sqlite3.Connection) -> None:
+    """Seed the normalized materials tables from data/materials.json
+    if they are empty. Existing rows are never overwritten."""
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM materials").fetchone()[0]
+    except Exception:
+        return
+    if count:
+        return
+    data = load_materials_json()
+    for m in data.get("materials", []):
+        props = m.get("properties", {}) or {}
+        temp = m.get("temperature_range_c") or [None, None]
+        conn.execute(
+            "INSERT INTO materials(id,name,grade,category,standard,source,"
+            " confidence,test_conditions,temp_min_c,temp_max_c,cost_index,"
+            " cost_note,corrosion_resistance,corrosion_note,notes)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (m["id"], m["name"], m.get("grade"), m["category"],
+             m.get("standard"), m.get("source"), m.get("confidence", "typical"),
+             m.get("test_conditions"), temp[0], temp[1],
+             m.get("cost_index"), m.get("cost_note"),
+             m.get("corrosion_resistance"), m.get("corrosion_note"),
+             m.get("notes")))
+        for key in PROPERTY_KEYS:
+            val = props.get(key)
+            if key == "hardness":
+                if isinstance(val, dict):
+                    conn.execute(
+                        "INSERT INTO material_properties(material_id,property_key,"
+                        " value_num,value_text,unit,confidence) VALUES (?,?,?,?,?,?)",
+                        (m["id"], key, val.get("value"),
+                         f"{val.get('value')} {val.get('scale')}",
+                         val.get("scale"), m.get("confidence", "typical")))
+                else:
+                    conn.execute(
+                        "INSERT INTO material_properties(material_id,property_key,"
+                        " value_num,value_text,unit,confidence) VALUES (?,?,?,?,?,?)",
+                        (m["id"], key, None, None, None,
+                         m.get("confidence", "typical")))
+                continue
+            conn.execute(
+                "INSERT INTO material_properties(material_id,property_key,"
+                " value_num,value_text,unit,confidence) VALUES (?,?,?,?,?,?)",
+                (m["id"], key, val,
+                 None if val is None else str(val),
+                 PROPERTY_UNITS.get(key), m.get("confidence", "typical")))
+
+
+def material_row_to_dict(row, props: dict) -> dict:
+    """Full material view from a materials row + its property rows.
+    `props` maps property_key -> (value_num, value_text, unit)."""
+    properties = {}
+    missing = []
+    for key in PROPERTY_KEYS:
+        num, text, unit = props.get(key, (None, None, None))
+        if key == "hardness":
+            properties[key] = None
+            if num is not None:
+                properties[key] = {"value": num, "scale": unit}
+            else:
+                missing.append(key)
+        else:
+            properties[key] = num
+            if num is None:
+                missing.append(key)
+    temp = None
+    if row["temp_min_c"] is not None or row["temp_max_c"] is not None:
+        temp = [row["temp_min_c"], row["temp_max_c"]]
+    derived = {}
+    d = properties.get("density_kg_m3")
+    t = properties.get("tensile_strength_mpa")
+    e = properties.get("elastic_modulus_gpa")
+    if t is not None and d:
+        # kN·m/kg — tensile strength per unit density
+        derived["strength_to_weight_kn_m_kg"] = round(t * 1000 / d, 1)
+    if e is not None and d:
+        # 10^6 m²/s² — elastic modulus per unit density
+        derived["specific_stiffness"] = round(e * 1000 / d, 1)
+    return {"id": row["id"], "name": row["name"], "grade": row["grade"],
+            "category": row["category"], "standard": row["standard"],
+            "source": row["source"], "confidence": row["confidence"],
+            "test_conditions": row["test_conditions"],
+            "temperature_range_c": temp,
+            "cost_index": row["cost_index"], "cost_note": row["cost_note"],
+            "corrosion_resistance": row["corrosion_resistance"],
+            "corrosion_note": row["corrosion_note"], "notes": row["notes"],
+            "properties": properties, "missing_properties": missing,
+            "derived": derived,
+            # Convenience top-level fields (Stage 1 compatibility):
+            "density": d, "tensile_strength": t,
+            "yield_strength": properties.get("yield_strength_mpa"),
+            "youngs_modulus": e,
+            "melting_point": properties.get("melting_point_c"),
+            "thermal_conductivity": properties.get("thermal_conductivity_w_mk"),
+            "poisson": properties.get("poisson_ratio")}
+
+
+def fetch_material(conn, material_id: str):
+    row = conn.execute("SELECT * FROM materials WHERE id=?",
+                       (material_id,)).fetchone()
+    if not row:
+        return None
+    props = {r["property_key"]: (r["value_num"], r["value_text"], r["unit"])
+             for r in conn.execute(
+                 "SELECT * FROM material_properties WHERE material_id=?",
+                 (material_id,))}
+    return material_row_to_dict(row, props)
+
+
+def fetch_materials(conn, where: str = "", args: tuple = ()):
+    rows = conn.execute(
+        "SELECT * FROM materials " + where + " ORDER BY name", args).fetchall()
+    out = []
+    for row in rows:
+        props = {r["property_key"]: (r["value_num"], r["value_text"], r["unit"])
+                 for r in conn.execute(
+                     "SELECT * FROM material_properties WHERE material_id=?",
+                     (row["id"],))}
+        out.append(material_row_to_dict(row, props))
+    return out
 
 
 def _columns(conn, table: str) -> set:
@@ -60,6 +212,36 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "visibility" not in _columns(conn, "projects"):
         conn.execute("ALTER TABLE projects ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'")
         conn.execute("UPDATE projects SET visibility='private' WHERE visibility IS NULL OR visibility=''")
+    # Stage 4: the flat Stage 1 materials table (no 'grade' column)
+    # is replaced by the normalized materials + material_properties
+    # tables. Drop and recreate so the schema is the single source
+    # of truth; seed_materials() repopulates from materials.json.
+    if "materials" in {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")} \
+            and "grade" not in _columns(conn, "materials"):
+        conn.execute("DROP TABLE IF EXISTS material_properties")
+        conn.execute("DROP TABLE IF EXISTS materials")
+        conn.execute("""CREATE TABLE materials (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, grade TEXT,
+            category TEXT NOT NULL, standard TEXT, source TEXT,
+            confidence TEXT NOT NULL DEFAULT 'typical'
+                CHECK (confidence IN ('verified','typical','estimated')),
+            test_conditions TEXT, temp_min_c REAL, temp_max_c REAL,
+            cost_index INTEGER CHECK (cost_index BETWEEN 1 AND 5),
+            cost_note TEXT,
+            corrosion_resistance INTEGER CHECK (corrosion_resistance BETWEEN 1 AND 5),
+            corrosion_note TEXT, notes TEXT)""")
+        conn.execute("""CREATE TABLE material_properties (
+            material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+            property_key TEXT NOT NULL, value_num REAL, value_text TEXT,
+            unit TEXT, confidence TEXT NOT NULL DEFAULT 'typical'
+                CHECK (confidence IN ('verified','typical','estimated')),
+            PRIMARY KEY (material_id, property_key))""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS material_favorites (
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (user_id, material_id))""")
 
 
 def new_id(prefix: str) -> str:

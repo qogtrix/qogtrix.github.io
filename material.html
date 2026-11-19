@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material — AI Engineering Laboratory</title>
+<meta name="description" content="Individual engineering material page: full properties, data quality, sources, comparison and project selection.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 4 · Materials</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Library</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span></div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb"><a href="materials.html">Material Library</a> / <span id="crumb-name">Material</span></span><span class="spacer"></span>
+    <span class="badge stage">STAGE 4</span>
+  </header>
+  <main class="content">
+    <p><a href="materials.html">← Back to the Material Library</a></p>
+    <div class="notice" id="detail-loading">Loading material…</div>
+    <div class="notice err" id="detail-error" style="display:none"></div>
+    <div id="detail" style="display:none">
+      <div class="mat-head">
+        <div>
+          <h1 id="detail-name"></h1>
+          <p class="muted" id="detail-sub"></p>
+          <p><span class="pill" id="detail-category"></span> <span class="pill" id="detail-confidence"></span> <span class="pill" id="detail-standard"></span></p>
+        </div>
+        <button class="fav-btn large" id="detail-fav" title="Add to favorites">☆</button>
+      </div>
+      <p id="detail-notes"></p>
+      <div class="grid cols-4" id="detail-stats"></div>
+
+      <div class="grid cols-2" style="margin-top:18px">
+        <div class="card">
+          <h2>Mechanical properties</h2>
+          <dl class="kv" id="props-mechanical"></dl>
+        </div>
+        <div class="card">
+          <h2>Thermal properties</h2>
+          <dl class="kv" id="props-thermal"></dl>
+        </div>
+        <div class="card">
+          <h2>Electrical &amp; durability</h2>
+          <dl class="kv" id="props-electrical"></dl>
+        </div>
+        <div class="card">
+          <h2>Data quality &amp; source</h2>
+          <dl class="kv" id="props-quality"></dl>
+          <p class="small muted">Missing values are shown as “Not available” — they were not measured or not published for this material, and they are never treated as zero.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Use this material in a project</h2>
+        <p class="small muted" id="select-note">Selecting a material saves it into the project’s material list. The material data itself stays in the library — the project only stores the material’s id.</p>
+        <div id="select-box" style="display:none">
+          <div class="toolbar">
+            <select id="select-project" style="flex:1;min-width:200px"></select>
+            <button id="select-add">Add to project</button>
+          </div>
+          <p class="small" id="select-result"></p>
+        </div>
+        <p id="select-signin" style="display:none"><a href="auth.html">Sign in</a> to select this material for one of your projects.</p>
+      </div>
+
+      <div style="margin-top:22px">
+        <h2>Related materials</h2>
+        <div class="grid cols-3" id="related-grid"></div>
+      </div>
+    </div>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 4 — Universal Material Database</footer>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/material-detail.js"></script>
+</body>
+</html>

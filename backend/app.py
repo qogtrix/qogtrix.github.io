@@ -186,11 +186,18 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 2,
+                return self._send(200, {"status": "ok", "stage": 4,
                                         "solver_available": False})
-            if path == "/api/v1/materials" and method == "GET":
-                data = _load_data_file("materials.json") or {"materials": []}
-                return self._send(200, data)
+            if path == "/api/v1/material-categories" and method == "GET":
+                cats = _load_data_file("material_categories.json") or {"categories": []}
+                counts = {r["category"]: r["n"] for r in self.conn.execute(
+                    "SELECT category, COUNT(*) n FROM materials GROUP BY category")}
+                out = []
+                for c in cats.get("categories", []):
+                    out.append({**c, "count": counts.get(c["id"], 0)})
+                return self._send(200, {"categories": out})
+            if path.startswith("/api/v1/materials"):
+                return self._route_materials(path, method, query)
             if path == "/api/v1/components" and method == "GET":
                 data = _load_data_file("components.json") or {"components": []}
                 return self._send(200, data)
@@ -214,6 +221,222 @@ class Handler(BaseHTTPRequestHandler):
             self._send(500, {"error": "Internal error: " + str(e)})
         finally:
             self.conn.close()
+
+    # -- material database (Stage 4) -----------------------------------
+    def _route_materials(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # /api/v1/materials/favorites — auth required, per-user, private.
+        if len(parts) == 4 and parts[3] == "favorites":
+            user = self._current_user()
+            if method == "GET":
+                rows = self.conn.execute(
+                    "SELECT material_id FROM material_favorites"
+                    " WHERE user_id=? ORDER BY created_at",
+                    (user["id"],)).fetchall()
+                mats = [dbmod.fetch_material(self.conn, r["material_id"])
+                        for r in rows]
+                return self._send(200, {"favorites": [m for m in mats if m]})
+            if method == "POST":
+                data = self._read_json()
+                mid = str(data.get("material_id", "")).strip()
+                if not dbmod.fetch_material(self.conn, mid):
+                    raise ApiError(404, "Material not found")
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO material_favorites"
+                    "(user_id, material_id, created_at) VALUES (?,?,?)",
+                    (user["id"], mid, now_iso()))
+                self.conn.commit()
+                return self._send(201, {"ok": True, "material_id": mid})
+            raise ApiError(404, "Not found")
+        if len(parts) == 5 and parts[3] == "favorites" and method == "DELETE":
+            user = self._current_user()
+            cur = self.conn.execute(
+                "DELETE FROM material_favorites WHERE user_id=? AND material_id=?",
+                (user["id"], parts[4]))
+            self.conn.commit()
+            if cur.rowcount == 0:
+                raise ApiError(404, "Favorite not found")
+            return self._send(200, {"ok": True})
+        # /api/v1/materials/recommend — public, rule-based, transparent.
+        if len(parts) == 4 and parts[3] == "recommend" and method == "POST":
+            return self._recommend_materials()
+        # /api/v1/materials/compare?ids=a,b,c — public, 2–4 materials.
+        if len(parts) == 4 and parts[3] == "compare" and method == "GET":
+            ids = [i.strip() for i in (query.get("ids", [""])[0] or "").split(",")
+                   if i.strip()]
+            if not 2 <= len(ids) <= 4:
+                raise ApiError(400, "Compare needs 2–4 material ids (ids=a,b,c)")
+            mats = [dbmod.fetch_material(self.conn, i) for i in ids]
+            if any(m is None for m in mats):
+                raise ApiError(404, "One of the materials was not found")
+            return self._send(200, {"materials": mats,
+                                    "comparison": _comparison_table(mats)})
+        # /api/v1/materials/<id> — public detail.
+        if len(parts) == 4 and method == "GET":
+            m = dbmod.fetch_material(self.conn, parts[3])
+            if not m:
+                raise ApiError(404, "Material not found")
+            return self._send(200, {"material": m})
+        # /api/v1/materials — public list with search and filters.
+        if len(parts) == 3 and method == "GET":
+            q = (query.get("q", [""])[0] or "").strip().lower()
+            category = (query.get("category", [""])[0] or "").strip()
+            sort = (query.get("sort", ["name"])[0] or "name").strip()
+
+            def _f(name):
+                v = (query.get(name, [""])[0] or "").strip()
+                try:
+                    return float(v) if v else None
+                except ValueError:
+                    raise ApiError(400, f"Invalid number for {name}: {v}")
+            min_tensile = _f("min_tensile")
+            max_density = _f("max_density")
+            min_melting = _f("min_melting")
+            max_cost = _f("max_cost")
+            min_corrosion = _f("min_corrosion")
+            mats = dbmod.fetch_materials(self.conn)
+            out = []
+            for m in mats:
+                p = m["properties"]
+                if q and q not in (m["name"] + " " + (m["grade"] or "") + " " +
+                                   m["category"]).lower():
+                    continue
+                if category and m["category"] != category:
+                    continue
+                if min_tensile is not None and (p["tensile_strength_mpa"] is None
+                                                or p["tensile_strength_mpa"] < min_tensile):
+                    continue
+                if max_density is not None and (p["density_kg_m3"] is None
+                                                or p["density_kg_m3"] > max_density):
+                    continue
+                if min_melting is not None and (p["melting_point_c"] is None
+                                                or p["melting_point_c"] < min_melting):
+                    continue
+                if max_cost is not None and (m["cost_index"] is None
+                                             or m["cost_index"] > max_cost):
+                    continue
+                if min_corrosion is not None and (m["corrosion_resistance"] is None
+                                                  or m["corrosion_resistance"] < min_corrosion):
+                    continue
+                out.append(m)
+            if sort == "strength_to_weight":
+                out.sort(key=lambda m: m["derived"].get("strength_to_weight_kn_m_kg") or -1,
+                         reverse=True)
+            elif sort == "density":
+                out.sort(key=lambda m: m["properties"]["density_kg_m3"] or 1e18)
+            elif sort == "tensile":
+                out.sort(key=lambda m: m["properties"]["tensile_strength_mpa"] or -1,
+                         reverse=True)
+            elif sort == "cost":
+                out.sort(key=lambda m: m["cost_index"] or 99)
+            else:
+                out.sort(key=lambda m: m["name"])
+            return self._send(200, {"materials": out, "count": len(out),
+                                    "total": len(mats),
+                                    "notice": "Typical published values for "
+                                    "education and early-stage design only — "
+                                    "verify against the datasheet."})
+        raise ApiError(404, "Not found")
+
+    def _recommend_materials(self):
+        """Transparent rule-based recommendation (Stage 4, AI prep).
+        Hard filters first, then a documented score:
+        50% strength-to-weight + 30% specific stiffness + 20% low cost.
+        Every candidate comes back with the reasons it fits and its
+        trade-offs, computed from its stored data — nothing invented."""
+        data = self._read_json()
+
+        def _num(key):
+            v = data.get(key)
+            if v is None or v == "":
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                raise ApiError(400, f"Invalid number for {key}: {v}")
+        min_tensile = _num("min_tensile_mpa")
+        max_density = _num("max_density_kg_m3")
+        min_melting = _num("min_melting_point_c")
+        max_cost = _num("max_cost_index")
+        min_corrosion = _num("min_corrosion")
+        category = str(data.get("category", "") or "").strip()
+        limit = data.get("limit", 5)
+        try:
+            limit = max(1, min(10, int(limit)))
+        except (TypeError, ValueError):
+            limit = 5
+        mats = dbmod.fetch_materials(self.conn)
+        candidates, excluded = [], 0
+        for m in mats:
+            p = m["properties"]
+            if category and m["category"] != category:
+                excluded += 1
+                continue
+            if min_tensile is not None and (p["tensile_strength_mpa"] is None
+                                            or p["tensile_strength_mpa"] < min_tensile):
+                excluded += 1
+                continue
+            if max_density is not None and (p["density_kg_m3"] is None
+                                            or p["density_kg_m3"] > max_density):
+                excluded += 1
+                continue
+            if min_melting is not None and (p["melting_point_c"] is None
+                                            or p["melting_point_c"] < min_melting):
+                excluded += 1
+                continue
+            if max_cost is not None and (m["cost_index"] is None
+                                         or m["cost_index"] > max_cost):
+                excluded += 1
+                continue
+            if min_corrosion is not None and (m["corrosion_resistance"] is None
+                                              or m["corrosion_resistance"] < min_corrosion):
+                excluded += 1
+                continue
+            candidates.append(m)
+        if not candidates:
+            return self._send(200, {"candidates": [], "excluded": excluded,
+                                    "note": "No material in the current "
+                                    "library meets all requirements — relax "
+                                    "a constraint and try again."})
+        max_stw = max((m["derived"].get("strength_to_weight_kn_m_kg") or 0)
+                      for m in candidates) or 1
+        max_ss = max((m["derived"].get("specific_stiffness") or 0)
+                     for m in candidates) or 1
+        ranked = []
+        for m in candidates:
+            stw = (m["derived"].get("strength_to_weight_kn_m_kg") or 0) / max_stw
+            ss = (m["derived"].get("specific_stiffness") or 0) / max_ss
+            cheap = 1 - ((m["cost_index"] or 3) - 1) / 4
+            score = round(0.5 * stw + 0.3 * ss + 0.2 * cheap, 3)
+            reasons, tradeoffs = [], []
+            if m["derived"].get("strength_to_weight_kn_m_kg"):
+                reasons.append(
+                    f"Strength-to-weight {m['derived']['strength_to_weight_kn_m_kg']} kN·m/kg")
+            if m["properties"]["tensile_strength_mpa"]:
+                reasons.append(
+                    f"Tensile strength {m['properties']['tensile_strength_mpa']} MPa")
+            if m["properties"]["melting_point_c"]:
+                reasons.append(
+                    f"Melting point {m['properties']['melting_point_c']} °C")
+            if (m["cost_index"] or 99) <= 2:
+                reasons.append("Low relative cost")
+            if (m["cost_index"] or 0) >= 4:
+                tradeoffs.append("Expensive (cost index 4–5)")
+            if (m["corrosion_resistance"] or 5) <= 2:
+                tradeoffs.append("Needs corrosion protection")
+            if (m["properties"]["thermal_conductivity_w_mk"] or 99) < 1:
+                tradeoffs.append("Poor heat conductor")
+            if m["properties"]["melting_point_c"] is None:
+                tradeoffs.append("No melting point on record")
+            ranked.append({"material": m, "score": score,
+                           "reasons": reasons, "trade_offs": tradeoffs})
+        ranked.sort(key=lambda r: r["score"], reverse=True)
+        return self._send(200, {
+            "candidates": ranked[:limit], "excluded": excluded,
+            "total_considered": len(mats),
+            "scoring": "50% strength-to-weight + 30% specific stiffness "
+                       "+ 20% low cost, each normalized to the best "
+                       "candidate in this result set."})
 
     # -- auth routes ---------------------------------------------------
     def _route_auth(self, path, method):
@@ -419,6 +642,40 @@ class Handler(BaseHTTPRequestHandler):
             row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
                                     (pid,)).fetchone()
             return self._send(201, {"project": dbmod.project_public(row)})
+        if len(parts) == 5 and parts[4] == "materials" and method == "POST":
+            # Select a material for this project (owner only). The
+            # material id is stored in payload.materials; the material
+            # data itself stays in the materials tables.
+            row = self._own_project(parts[3], user["id"])
+            data = self._read_json()
+            mid = str(data.get("material_id", "")).strip()
+            if not dbmod.fetch_material(self.conn, mid):
+                raise ApiError(404, "Material not found")
+            payload = json.loads(row["payload"]) or {}
+            selected = payload.get("materials") or []
+            if mid not in selected:
+                selected.append(mid)
+            payload["materials"] = selected
+            self.conn.execute(
+                "UPDATE projects SET payload=?, updated_at=? WHERE id=? AND owner_id=?",
+                (json.dumps(payload), now_iso(), parts[3], user["id"]))
+            self.conn.commit()
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
+                                    (parts[3],)).fetchone()
+            return self._send(200, {"project": dbmod.project_public(row)})
+        if len(parts) == 6 and parts[4] == "materials" and method == "DELETE":
+            row = self._own_project(parts[3], user["id"])
+            payload = json.loads(row["payload"]) or {}
+            selected = [m for m in (payload.get("materials") or [])
+                        if m != parts[5]]
+            payload["materials"] = selected
+            self.conn.execute(
+                "UPDATE projects SET payload=?, updated_at=? WHERE id=? AND owner_id=?",
+                (json.dumps(payload), now_iso(), parts[3], user["id"]))
+            self.conn.commit()
+            row = self.conn.execute(dbmod.PROJECT_SELECT + " WHERE projects.id=?",
+                                    (parts[3],)).fetchone()
+            return self._send(200, {"project": dbmod.project_public(row)})
         if len(parts) == 5 and parts[4] == "duplicate" and method == "POST":
             src = self._own_project(parts[3], user["id"])
             pid = dbmod.new_id("proj")
@@ -524,13 +781,64 @@ class Handler(BaseHTTPRequestHandler):
         raise ApiError(404, "Not found")
 
 
+def _comparison_table(mats):
+    """Side-by-side comparison rows, computed from stored data.
+    `best` is the index of the best value in that row (None when
+    values are missing or not comparable, e.g. hardness scales)."""
+    labels = {
+        "density_kg_m3": ("Density", "kg/m³", "min"),
+        "tensile_strength_mpa": ("Tensile strength", "MPa", "max"),
+        "compressive_strength_mpa": ("Compressive strength", "MPa", "max"),
+        "yield_strength_mpa": ("Yield strength", "MPa", "max"),
+        "elastic_modulus_gpa": ("Elastic modulus", "GPa", "max"),
+        "poisson_ratio": ("Poisson's ratio", "—", None),
+        "shear_modulus_gpa": ("Shear modulus", "GPa", "max"),
+        "thermal_conductivity_w_mk": ("Thermal conductivity", "W/m·K", "max"),
+        "specific_heat_j_kgk": ("Specific heat", "J/kg·K", "max"),
+        "thermal_expansion_um_mk": ("Thermal expansion", "µm/m·K", "min"),
+        "melting_point_c": ("Melting point", "°C", "max"),
+        "electrical_resistivity_ohm_m": ("Electrical resistivity", "Ω·m", "min"),
+        "electrical_conductivity_pct_iacs": ("Electrical conductivity", "% IACS", "max"),
+        "fatigue_limit_mpa": ("Fatigue limit", "MPa", "max"),
+        "fracture_toughness_mpa_sqrt_m": ("Fracture toughness", "MPa√m", "max"),
+    }
+    rows = []
+    for key, (label, unit, direction) in labels.items():
+        values = [m["properties"].get(key) for m in mats]
+        best = None
+        present = [(i, v) for i, v in enumerate(values) if v is not None]
+        if direction and len(present) >= 2:
+            best = (max if direction == "max" else min)(present, key=lambda t: t[1])[0]
+        rows.append({"key": key, "label": label, "unit": unit,
+                     "values": values, "best": best})
+    # Derived metrics + cost + corrosion.
+    for key, label, unit, direction in [
+            ("strength_to_weight_kn_m_kg", "Strength-to-weight", "kN·m/kg", "max"),
+            ("specific_stiffness", "Specific stiffness", "10⁶ m²/s²", "max")]:
+        values = [m["derived"].get(key) for m in mats]
+        present = [(i, v) for i, v in enumerate(values) if v is not None]
+        best = max(present, key=lambda t: t[1])[0] if len(present) >= 2 else None
+        rows.append({"key": key, "label": label, "unit": unit,
+                     "values": values, "best": best})
+    for key, label, unit, direction in [
+            ("cost_index", "Relative cost (1 cheap – 5 expensive)", "1–5", "min"),
+            ("corrosion_resistance", "Corrosion resistance", "1–5", "max")]:
+        values = [m.get(key) for m in mats]
+        present = [(i, v) for i, v in enumerate(values) if v is not None]
+        best = (max if direction == "max" else min)(present, key=lambda t: t[1])[0] \
+            if len(present) >= 2 else None
+        rows.append({"key": key, "label": label, "unit": unit,
+                     "values": values, "best": best})
+    return rows
+
+
 def main():
     port = int(os.environ.get("AIELAB_PORT", "8001"))
     conn = dbmod.connect()
     dbmod.init_db(conn)
     conn.close()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AI Engineering Laboratory API — Stage 2")
+    print(f"AI Engineering Laboratory API — Stage 4")
     print(f"Listening on http://127.0.0.1:{port}  (health: /health)")
     print("Set AIELAB_SECRET in production; AIELAB_DB to change the database file.")
     try:

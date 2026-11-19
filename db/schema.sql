@@ -1,4 +1,4 @@
--- AI Engineering Laboratory — Database schema, Stage 2
+-- AI Engineering Laboratory — Database schema, Stages 2–4
 -- Target: PostgreSQL in production, SQLite for local dev.
 -- Portable tables first (both engines). Postgres-only Row Level
 -- Security policies are in the section after the marker below.
@@ -52,19 +52,55 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
+-- Stage 4 — normalized material database (replaces the flat Stage 1
+-- materials table). Core facts live in `materials`; every measured
+-- property is a row in `material_properties` (one row per property,
+-- with its unit and confidence), so a new property never needs a
+-- schema change. `material_favorites` is per-user and private.
+-- The authoritative content is data/materials.json; the backend
+-- seeds these tables from it on first run (see backend/db.py).
+-- A NULL property value means "not available" — never zero, never
+-- invented. Confidence is one of: verified / typical / estimated.
 CREATE TABLE IF NOT EXISTS materials (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    grade TEXT,
     category TEXT NOT NULL,
-    density_kg_m3 REAL,
-    youngs_modulus_gpa REAL,
-    yield_strength_mpa REAL,
-    tensile_strength_mpa REAL,
-    poisson_ratio REAL,
-    thermal_conductivity_w_mk REAL,
-    melting_point_c REAL,
-    source_note TEXT
+    standard TEXT,
+    source TEXT,
+    confidence TEXT NOT NULL DEFAULT 'typical'
+        CHECK (confidence IN ('verified','typical','estimated')),
+    test_conditions TEXT,
+    temp_min_c REAL,
+    temp_max_c REAL,
+    cost_index INTEGER CHECK (cost_index BETWEEN 1 AND 5),
+    cost_note TEXT,
+    corrosion_resistance INTEGER CHECK (corrosion_resistance BETWEEN 1 AND 5),
+    corrosion_note TEXT,
+    notes TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_materials_category ON materials(category);
+CREATE INDEX IF NOT EXISTS idx_materials_name ON materials(name);
+
+CREATE TABLE IF NOT EXISTS material_properties (
+    material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    property_key TEXT NOT NULL,
+    value_num REAL,
+    value_text TEXT,
+    unit TEXT,
+    confidence TEXT NOT NULL DEFAULT 'typical'
+        CHECK (confidence IN ('verified','typical','estimated')),
+    PRIMARY KEY (material_id, property_key)
+);
+CREATE INDEX IF NOT EXISTS idx_matprops_key ON material_properties(property_key);
+
+CREATE TABLE IF NOT EXISTS material_favorites (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, material_id)
+);
+CREATE INDEX IF NOT EXISTS idx_matfav_user ON material_favorites(user_id);
 
 CREATE TABLE IF NOT EXISTS components (
     id TEXT PRIMARY KEY,
@@ -143,6 +179,11 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs(user_id);
 --   CREATE POLICY simulations_owner_isolation ON simulations
 --     USING (owner_id = current_setting('app.current_user_id', true))
 --     WITH CHECK (owner_id = current_setting('app.current_user_id', true));
+--   -- Stage 4: materials are public reference data (read for all);
+--   -- material_favorites are owner-scoped like projects.
+--   CREATE POLICY matfav_owner_isolation ON material_favorites
+--     USING (user_id = current_setting('app.current_user_id', true))
+--     WITH CHECK (user_id = current_setting('app.current_user_id', true));
 -- The backend sets app.current_user_id per connection (SET LOCAL)
 -- from the verified session. Backend checks remain the primary
 -- enforcement; RLS is defence-in-depth so even a buggy query or a

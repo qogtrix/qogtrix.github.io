@@ -56,6 +56,44 @@
     }
   }
 
+  // -- Stage 4: materials selected for the open project ---------------
+  var matNames = {};
+  async function loadMaterialNames() {
+    try {
+      var r = await window.AIELAB_AUTH.api('GET', '/api/v1/materials');
+      (r.materials || []).forEach(function (m) { matNames[m.id] = m.name; });
+    } catch (e) {
+      try {
+        var d = await (await fetch('data/materials.json')).json();
+        (d.materials || []).forEach(function (m) { matNames[m.id] = m.name; });
+      } catch (e2) { /* names stay as ids */ }
+    }
+    var sel = el('editor-material-select');
+    if (sel) sel.innerHTML = Object.keys(matNames).sort().map(function (id) {
+      return '<option value="' + id + '">' + esc(matNames[id]) + '</option>';
+    }).join('');
+  }
+  function renderEditorMaterials() {
+    var box = el('editor-materials-list'); if (!box || !current) return;
+    var ids = (current.payload && current.payload.materials) || [];
+    if (!ids.length) { box.innerHTML = '<span class="muted">No materials selected yet.</span>'; return; }
+    box.innerHTML = ids.map(function (id) {
+      return '<span class="pill" style="margin:2px 4px 2px 0">' + esc(matNames[id] || id) +
+        ' <a href="#" data-remove-mat="' + id + '" title="Remove">✕</a></span>';
+    }).join('') + ' <span class="small muted">(<a href="materials.html">browse the library</a>)</span>';
+    box.querySelectorAll('[data-remove-mat]').forEach(function (a) {
+      a.addEventListener('click', async function (ev) {
+        ev.preventDefault();
+        try {
+          var r = await window.AIELAB_AUTH.api('DELETE', '/api/v1/projects/' + current.id + '/materials/' + a.getAttribute('data-remove-mat'));
+          current = r.project;
+          el('edit-payload').value = JSON.stringify(current.payload || {}, null, 2);
+          renderEditorMaterials();
+        } catch (e) { alert('Could not remove material: ' + e.message); }
+      });
+    });
+  }
+
   async function openProject(id) {
     try {
       var r = await window.AIELAB_AUTH.api('GET', '/api/v1/projects/' + id);
@@ -67,6 +105,8 @@
       el('edit-visibility').value = current.visibility || 'private';
       el('visibility-status').textContent = (current.visibility === 'public' ? '🌐 PUBLIC — visible in the Public Gallery' : '🔒 PRIVATE — only you can see it');
       el('edit-payload').value = JSON.stringify(current.payload || {}, null, 2);
+      await loadMaterialNames();
+      renderEditorMaterials();
       el('project-editor').style.display = 'block';
       el('project-editor').scrollIntoView({ behavior: 'smooth' });
     } catch (e) { alert('Could not open project: ' + e.message); }
@@ -105,5 +145,17 @@
     });
     var close = el('close-editor');
     if (close) close.addEventListener('click', function () { current = null; el('project-editor').style.display = 'none'; });
+    var addMat = el('editor-material-add');
+    if (addMat) addMat.addEventListener('click', async function () {
+      if (!current) return;
+      var mid = (el('editor-material-select') || {}).value;
+      if (!mid) return;
+      try {
+        var r = await window.AIELAB_AUTH.api('POST', '/api/v1/projects/' + current.id + '/materials', { material_id: mid });
+        current = r.project;
+        el('edit-payload').value = JSON.stringify(current.payload || {}, null, 2);
+        renderEditorMaterials();
+      } catch (e) { alert('Could not add material: ' + e.message); }
+    });
   });
 })();

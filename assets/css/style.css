@@ -86,6 +86,27 @@ button:disabled{background:var(--surface2);color:var(--muted2);cursor:not-allowe
 footer{padding:18px 22px;border-top:1px solid var(--border);color:var(--muted2);font-size:.8rem;text-align:center}
 .hamburger{display:none;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 11px}
 #error-banner{display:none;background:#7f1d1d;color:#fff;padding:10px 16px;font-size:.9rem}
+/* Stage 4 — Material Library */
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.chip{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-size:.85rem;font-weight:600;cursor:pointer}
+.chip:hover{color:var(--text);border-color:var(--accent)}
+.chip.active{background:var(--accent);color:#04121f;border-color:var(--accent)}
+.mat-card{display:flex;flex-direction:column;gap:6px}
+.mat-card h3{margin:0}
+.mat-card h3 a{color:var(--text)}
+.mat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.mat-stats{margin:6px 0}
+.mat-stats .stat-num{font-size:1.25rem}
+.fav-btn{background:transparent;color:var(--amber);border:1px solid var(--border);border-radius:9px;padding:4px 10px;font-size:1.1rem;line-height:1.2}
+.fav-btn.on{color:var(--amber);border-color:var(--amber);background:#221a05}
+.fav-btn.large{font-size:1.5rem;padding:8px 14px}
+.cmp-btn.on{background:#0e2a1e;color:var(--green);border-color:#14532d}
+.compare-tray{position:fixed;left:var(--sidebar);right:0;bottom:0;z-index:30;display:flex;gap:12px;align-items:center;background:rgba(15,20,27,.97);border-top:1px solid var(--border);padding:12px 22px;box-shadow:0 -6px 24px rgba(0,0,0,.4)}
+.compare-tray .tray-text{flex:1;font-size:.9rem;color:var(--muted)}
+.best-cell{background:#0e2a1e !important;color:var(--green);font-weight:700}
+.missing{color:var(--muted2);font-style:italic}
+.rec-card{margin:8px 0}
+@media (max-width:900px){ .compare-tray{left:0} }
 /* Responsive */
 @media (max-width:900px){
   .sidebar{transform:translateX(-100%);transition:transform .2s}

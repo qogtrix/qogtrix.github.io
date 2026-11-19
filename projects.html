@@ -15,6 +15,7 @@
   <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
   <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
   <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Library</a>
   <div class="nav-label">Laboratories</div>
   <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
   <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
@@ -80,6 +81,15 @@
         <option value="structural">Structural</option><option value="aerospace">Aerospace</option><option value="robotics">Robotics</option><option value="materials">Materials Science</option>
       </select></p>
       <p><label class="small muted">Design data (JSON — saved with the project)</label><br><textarea id="edit-payload" rows="6" style="width:100%;font-family:monospace"></textarea></p>
+      <div id="editor-materials">
+        <p><label class="small muted">Materials for this project</label></p>
+        <div id="editor-materials-list" class="small"></div>
+        <div class="toolbar">
+          <select id="editor-material-select" style="flex:1;min-width:200px"></select>
+          <button class="secondary" id="editor-material-add" type="button">Add material</button>
+        </div>
+        <p class="small muted">Materials come from the <a href="materials.html">Material Library</a>. The project stores only the material id; the data stays in the library.</p>
+      </div>
       <div class="btn-row"><button id="save-project">Save progress</button><button class="secondary" id="close-editor">Close</button></div>
       <p class="small muted" id="save-status"></p>
     </div>

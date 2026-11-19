@@ -281,3 +281,52 @@ docs/TEST_RESULTS_STAGE3.md
  assets/js/auth.js, assets/js/projects.js, auth.html,
  projects.html, settings.html, all navs)
 ```
+
+---
+
+# Stage 4 — Universal Material Database (19 Nov 2026)
+
+## 20. What changed
+
+- **Data:** `data/materials.json` v2 — 38 materials, 10 categories,
+  16 properties each, nested `properties` with null = not available,
+  per-material grade / standard / source / confidence /
+  test conditions / temperature range / cost index / corrosion
+  rating. `data/material_categories.json` holds the 10 categories.
+  See `docs/MATERIALS.md` for the data-quality rules.
+- **Normalized storage:** `materials` + `material_properties` +
+  `material_favorites` in `db/schema.sql`; backend seeds them from
+  `materials.json` on first run (idempotent). A new property never
+  needs a schema change — it is a new row.
+- **API:** materials list (search + filters + sort), detail,
+  categories with counts, compare (2–4, best-value per row),
+  recommend (transparent scoring), favorites (auth, per-user),
+  project material selection (owner-only, id stored in
+  `payload.materials`). Full contract in `backend/api-spec.md`.
+- **Frontend:** `materials.html` (library: chips, filters, cards,
+  favorites, compare tray, recommender) and `material.html`
+  (detail page: grouped properties, data quality, select-for-
+  project, related materials). Both work from static JSON on
+  GitHub Pages and sync favorites to the backend when it runs.
+  `labs/materials.html` links to the full library; `projects.html`
+  editor shows selected materials with add/remove.
+- **AI prep:** the materials API is the structured retrieval
+  system — search / compare / recommend / select, all with
+  reasons and trade-offs computed from stored data. Documented
+  in `docs/MUSE_INTEGRATION.md`.
+
+## 21. Stage 4 file map (additions)
+
+```
+materials.html  material.html
+assets/js/materials-library.js  assets/js/material-detail.js
+data/material_categories.json
+backend/test_stage4.py
+docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
+(changed: data/materials.json, assets/js/materials.js,
+ assets/js/projects.js, assets/css/style.css, backend/app.py,
+ backend/db.py, db/schema.sql, docs/ARCHITECTURE.md,
+ docs/STATUS.md, docs/MUSE_INTEGRATION.md, backend/api-spec.md,
+ README.md, index.html, projects.html, labs/materials.html,
+ all navs)
+```

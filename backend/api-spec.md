@@ -63,6 +63,43 @@ All project errors: 401 unauthenticated, 404 not yours / not found,
 - `GET /api/v1/public/projects/{id}` — public project detail
   (read-only); 404 for private or nonexistent projects.
 
+## Material database (Stage 4)
+
+All material endpoints are public except favorites (auth) and
+project material selection (owner). Material data is reference
+data — typical published values, never certified datasheet values.
+Missing properties are `null` and listed in `missing_properties`.
+
+- `GET /api/v1/material-categories` — 10 categories with counts.
+- `GET /api/v1/materials?q=&category=&min_tensile=&max_density=&min_melting=&max_cost=&min_corrosion=&sort=`
+  — list with filters; sort ∈ name | strength_to_weight | density |
+  tensile | cost. Response: `{materials, count, total, notice}`.
+  Each material carries `properties` (16 keys, null when unknown),
+  `derived` (strength_to_weight_kn_m_kg, specific_stiffness),
+  `missing_properties`, plus convenience top-level fields
+  (density, tensile_strength, yield_strength, youngs_modulus,
+  melting_point, thermal_conductivity, poisson).
+- `GET /api/v1/materials/{id}` — full detail incl. source,
+  standard, confidence, test_conditions, temperature_range_c,
+  cost_index, corrosion_resistance + notes.
+- `GET /api/v1/materials/compare?ids=a,b,c` — 2–4 materials;
+  19 comparison rows (properties + derived + cost + corrosion)
+  with `best` = index of the best value, or null when missing /
+  not comparable. 400 for <2 or >4 ids, 404 for unknown id.
+- `POST /api/v1/materials/recommend` — body: min_tensile_mpa,
+  max_density_kg_m3, min_melting_point_c, max_cost_index,
+  min_corrosion, category, limit (default 5, max 10). Hard filters
+  first, then score = 50% strength-to-weight + 30% specific
+  stiffness + 20% low cost (each normalized to the best candidate
+  in the result set). Returns `{candidates: [{material, score,
+  reasons, trade_offs}], excluded, total_considered, scoring}`.
+  Impossible requirements return an empty list, never fake data.
+- `GET|POST /api/v1/materials/favorites` (auth) — per-user
+  favorites; `DELETE /api/v1/materials/favorites/{id}`.
+- `POST /api/v1/projects/{id}/materials` (owner) — body
+  `{material_id}`; appends to `payload.materials`.
+  `DELETE /api/v1/projects/{id}/materials/{material_id}` (owner).
+
 ## Public data (read-only)
 
 `GET /api/v1/materials`, `GET /api/v1/components` — served from

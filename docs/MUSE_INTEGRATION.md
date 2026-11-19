@@ -35,3 +35,32 @@ session, or private projects.
   through the agent's key, the API, or the database.
 - A key must never be pasted into chat, committed to git, or shared.
   If one leaks, revoke it and create a new one.
+
+---
+
+## Materials (Stage 4) — structured retrieval for Muse
+
+The materials API is the retrieval system the agent uses to search,
+compare, recommend and select materials. It is read-only except for
+favorites and project selection, which are owner-scoped like all
+project writes (agent tokens work the same as session tokens).
+
+- **Search:** `GET /api/v1/materials?q=aluminium&category=metals&min_tensile=500&max_density=3000&sort=strength_to_weight`
+- **Detail:** `GET /api/v1/materials/{id}` — full properties, source,
+  standard, confidence, `missing_properties` (never treat a missing
+  value as zero), `derived` (strength-to-weight, specific stiffness).
+- **Compare:** `GET /api/v1/materials/compare?ids=a,b,c` — 19 rows
+  with a computed `best` index per row.
+- **Recommend:** `POST /api/v1/materials/recommend` with hard
+  requirements; returns ranked candidates with `score`, `reasons`
+  and `trade_offs` computed from stored data, plus the scoring
+  formula and the count of excluded materials. Explain trade-offs
+  from those fields — do not invent new ones.
+- **Select:** `POST /api/v1/projects/{id}/materials` with
+  `{material_id}` — only for the agent owner's own projects.
+- **Favorites:** `GET/POST/DELETE /api/v1/materials/favorites`.
+
+Rules: cite the `source` and `confidence` of any value you quote;
+say "not on record" for missing properties; never present the
+38-material sample as a complete database; cost is a relative
+1–5 index, not a price.

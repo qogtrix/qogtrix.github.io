@@ -104,3 +104,26 @@ docs/*.md
   See `docs/TEST_RESULTS_STAGE3.md`.
 - Future sharing / downloads / version history / comments /
   collaboration are prepared in the architecture only, not built.
+
+## Stage 4 — Universal Material Database (19 Nov 2026)
+
+- **38 materials across 10 categories** — a working sample, not a
+  complete universal database. Values are typical published values
+  with sources; missing values are null and shown as "—".
+- **Library** (`materials.html`): search, category chips, property
+  filters, sort, favorites, 2–4 material comparison with
+  best-value highlighting, and a requirements recommender with
+  transparent scoring (50% strength-to-weight + 30% specific
+  stiffness + 20% low cost).
+- **Material pages** (`material.html?id=...`): grouped properties,
+  data quality (source, standard, test conditions, temperature
+  range, confidence), derived metrics, related materials, and
+  select-for-project.
+- **Backend:** normalized tables (`materials`,
+  `material_properties`, `material_favorites`), seeded once from
+  `data/materials.json`; API for search/filter/compare/recommend/
+  favorites/project selection. See `docs/MATERIALS.md`.
+- Tests: `backend/test_stage4.py`, **42/42 passed**; Stage 2 and
+  Stage 3 suites still 34/34. See `docs/TEST_RESULTS_STAGE4.md`.
+- Add a material by appending one entry to
+  `data/materials.json` — no code change needed.

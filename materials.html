@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material Library — AI Engineering Laboratory</title>
+<meta name="description" content="Searchable engineering material database: 38 graded materials across 10 categories, with properties, sources, comparison and recommendations.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="error-banner" role="alert"></div>
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">⚙</div><div><b>AI Engineering Lab</b><span>Stage 4 · Materials</span></div></div>
+  <div class="nav-label">Platform</div>
+  <a class="nav-link" href="index.html"><span class="ic">▦</span> Dashboard</a>
+  <a class="nav-link" href="materials.html"><span class="ic">🧪</span> Materials Library</a>
+  <a class="nav-link" href="gallery.html"><span class="ic">🖼</span> Public Gallery</a>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="workspace.html"><span class="ic">⬢</span> 3D Workspace</a>
+  <div class="nav-label">Laboratories</div>
+  <a class="nav-link" href="labs/mechanical.html"><span class="ic">⚙</span> Mechanical</a>
+  <a class="nav-link" href="labs/electrical.html"><span class="ic">⚡</span> Electrical</a>
+  <a class="nav-link" href="labs/structural.html"><span class="ic">🏗</span> Structural</a>
+  <a class="nav-link" href="labs/aerospace.html"><span class="ic">✈</span> Aerospace</a>
+  <a class="nav-link" href="labs/robotics.html"><span class="ic">🤖</span> Robotics</a>
+  <a class="nav-link" href="labs/materials.html"><span class="ic">🧪</span> Materials Science</a>
+  <div class="nav-label">Account</div>
+  <a class="nav-link" href="projects.html"><span class="ic">📁</span> My Projects</a>
+  <a class="nav-link" href="auth.html"><span class="ic">🔑</span> Sign in / Register</a>
+  <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Account Settings</a>
+  <div class="sidebar-foot"><span id="auth-state">Not signed in</span><br><br>Favorites sync to your account when you are signed in and the backend is running; otherwise they are saved on this device.</div>
+</nav>
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <span class="crumb">Material Library</span><span class="spacer"></span>
+    <span class="badge stage">STAGE 4</span>
+  </header>
+  <main class="content">
+    <h1>Material Library</h1>
+    <p>An expandable engineering material database for every laboratory. <strong>38 materials</strong> across <strong>10 categories</strong> — a working sample, not a complete universal database. Every value is a typical published value with its source, and missing values are shown as “—”, never invented.</p>
+    <p class="notice" id="lib-notice">Typical published values for education and early-stage design exploration only. They are NOT certified datasheet values. Verify against the manufacturer’s datasheet before any design, safety, or procurement use.</p>
+
+    <div class="toolbar">
+      <input id="lib-search" type="search" placeholder="Search materials or grades — try “aluminium”, “PEEK”, “316”…" style="flex:2;min-width:200px">
+      <select id="lib-sort" title="Sort by">
+        <option value="name">Sort: Name</option>
+        <option value="strength_to_weight">Sort: Strength-to-weight</option>
+        <option value="density">Sort: Density (light first)</option>
+        <option value="tensile">Sort: Tensile strength</option>
+        <option value="cost">Sort: Cost (cheap first)</option>
+      </select>
+      <label class="small"><input type="checkbox" id="lib-fav-only"> Favorites only</label>
+    </div>
+    <div class="toolbar">
+      <input id="lib-min-tensile" type="number" min="0" placeholder="Min tensile (MPa)" style="width:150px">
+      <input id="lib-max-density" type="number" min="0" placeholder="Max density (kg/m³)" style="width:160px">
+      <input id="lib-min-melting" type="number" placeholder="Min melting (°C)" style="width:140px">
+      <select id="lib-max-cost" title="Maximum relative cost">
+        <option value="">Any cost</option><option value="1">Cost ≤ 1 (cheapest)</option><option value="2">Cost ≤ 2</option><option value="3">Cost ≤ 3</option><option value="4">Cost ≤ 4</option>
+      </select>
+    </div>
+    <div id="category-chips" class="chip-row" aria-label="Material categories"></div>
+    <p class="small muted" id="lib-count"></p>
+    <div class="notice" id="lib-loading">Loading the material database…</div>
+    <div class="notice err" id="lib-error" style="display:none"></div>
+    <div class="notice info" id="lib-empty" style="display:none">No materials match those filters. Try clearing a filter or searching for a different name or grade.</div>
+    <div class="grid cols-3" id="materials-grid"></div>
+
+    <section id="compare-section" class="card" style="display:none;margin-top:22px"></section>
+
+    <section class="card" style="margin-top:22px">
+      <h2>Find a material for your design</h2>
+      <p class="small muted">Tell us what the part must survive. The recommender filters the library by your hard requirements, then ranks what is left by strength-to-weight (50%), specific stiffness (30%) and low cost (20%). The scoring is shown with every result — nothing is hidden.</p>
+      <div class="toolbar">
+        <input id="rec-min-tensile" type="number" min="0" placeholder="Min tensile (MPa)" style="width:150px">
+        <input id="rec-max-density" type="number" min="0" placeholder="Max density (kg/m³)" style="width:160px">
+        <input id="rec-min-melting" type="number" placeholder="Min melting (°C)" style="width:140px">
+        <select id="rec-max-cost" title="Maximum relative cost">
+          <option value="">Any cost</option><option value="2">Cost ≤ 2</option><option value="3">Cost ≤ 3</option><option value="4">Cost ≤ 4</option>
+        </select>
+        <select id="rec-min-corrosion" title="Minimum corrosion resistance">
+          <option value="">Any corrosion</option><option value="3">Corrosion ≥ 3</option><option value="4">Corrosion ≥ 4</option><option value="5">Corrosion 5 only</option>
+        </select>
+        <button id="rec-run">Recommend</button>
+      </div>
+      <div id="rec-results"></div>
+    </section>
+  </main>
+  <footer>AI Engineering Laboratory · Stage 4 — Universal Material Database</footer>
+</div>
+<div id="compare-tray" class="compare-tray" style="display:none">
+  <span class="tray-text"></span>
+  <button id="compare-go">Compare</button>
+  <button class="secondary" id="compare-clear-tray">Clear</button>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/materials-library.js"></script>
+</body>
+</html>
