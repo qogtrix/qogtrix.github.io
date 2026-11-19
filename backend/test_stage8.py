@@ -371,7 +371,7 @@ def main():
     base = f"http://127.0.0.1:{port}"
     try:
         status, body = req(base, "GET", "/health")
-        check("health reports stage 8", body.get("stage") == 8, str(body))
+        check("health reports stage 8 or later", body.get("stage") in (8, 9), str(body))
         status, body = req(base, "POST", "/api/v1/auth/register",
                            body={"email": "alice@example.com", "username": "alice",
                                  "password": "correct-horse-battery", "name": "Alice"})

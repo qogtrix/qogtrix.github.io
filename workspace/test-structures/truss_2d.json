@@ -1,0 +1,229 @@
+{
+  "name": "2D Pratt truss \u2014 6 m span, 10 kN at interior top joints",
+  "nodes": [
+    {
+      "id": "b0",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "t0",
+      "x_m": 0,
+      "y_m": 2,
+      "z_m": 0
+    },
+    {
+      "id": "b1",
+      "x_m": 2,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "t1",
+      "x_m": 2,
+      "y_m": 2,
+      "z_m": 0
+    },
+    {
+      "id": "b2",
+      "x_m": 4,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "t2",
+      "x_m": 4,
+      "y_m": 2,
+      "z_m": 0
+    },
+    {
+      "id": "b3",
+      "x_m": 6,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "t3",
+      "x_m": 6,
+      "y_m": 2,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "bot0",
+      "type": "truss",
+      "n1": "b0",
+      "n2": "b1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "top0",
+      "type": "truss",
+      "n1": "t0",
+      "n2": "t1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "vert0",
+      "type": "truss",
+      "n1": "b0",
+      "n2": "t0",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "bot1",
+      "type": "truss",
+      "n1": "b1",
+      "n2": "b2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "top1",
+      "type": "truss",
+      "n1": "t1",
+      "n2": "t2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "vert1",
+      "type": "truss",
+      "n1": "b1",
+      "n2": "t1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "bot2",
+      "type": "truss",
+      "n1": "b2",
+      "n2": "b3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "top2",
+      "type": "truss",
+      "n1": "t2",
+      "n2": "t3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "vert2",
+      "type": "truss",
+      "n1": "b2",
+      "n2": "t2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "vert3",
+      "type": "truss",
+      "n1": "b3",
+      "n2": "t3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "diag0",
+      "type": "truss",
+      "n1": "b0",
+      "n2": "t1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "diag1",
+      "type": "truss",
+      "n1": "b1",
+      "n2": "t2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    },
+    {
+      "id": "diag2",
+      "type": "truss",
+      "n1": "b2",
+      "n2": "t3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.05
+      }
+    }
+  ],
+  "supports": [
+    {
+      "node": "b0",
+      "ux": true,
+      "uy": true,
+      "uz": true
+    },
+    {
+      "node": "b3",
+      "ux": false,
+      "uy": true,
+      "uz": true
+    }
+  ],
+  "loads": [
+    {
+      "case": "dead",
+      "type": "point",
+      "node": "t1",
+      "fy_N": -10000
+    },
+    {
+      "case": "dead",
+      "type": "point",
+      "node": "t2",
+      "fy_N": -10000
+    }
+  ],
+  "expected": {
+    "reaction_b0_N": 10000
+  }
+}

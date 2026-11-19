@@ -1,0 +1,304 @@
+{
+  "name": "Truss bridge \u2014 12 m span, 3 m deep, 20 kN panel loads",
+  "nodes": [
+    {
+      "id": "d0",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "u0",
+      "x_m": 0,
+      "y_m": 3,
+      "z_m": 0
+    },
+    {
+      "id": "d1",
+      "x_m": 3,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "u1",
+      "x_m": 3,
+      "y_m": 3,
+      "z_m": 0
+    },
+    {
+      "id": "d2",
+      "x_m": 6,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "u2",
+      "x_m": 6,
+      "y_m": 3,
+      "z_m": 0
+    },
+    {
+      "id": "d3",
+      "x_m": 9,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "u3",
+      "x_m": 9,
+      "y_m": 3,
+      "z_m": 0
+    },
+    {
+      "id": "d4",
+      "x_m": 12,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "u4",
+      "x_m": 12,
+      "y_m": 3,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "chord_bot0",
+      "type": "truss",
+      "n1": "d0",
+      "n2": "d1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "chord_top0",
+      "type": "truss",
+      "n1": "u0",
+      "n2": "u1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "vert0",
+      "type": "truss",
+      "n1": "d0",
+      "n2": "u0",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "chord_bot1",
+      "type": "truss",
+      "n1": "d1",
+      "n2": "d2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "chord_top1",
+      "type": "truss",
+      "n1": "u1",
+      "n2": "u2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "vert1",
+      "type": "truss",
+      "n1": "d1",
+      "n2": "u1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "chord_bot2",
+      "type": "truss",
+      "n1": "d2",
+      "n2": "d3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "chord_top2",
+      "type": "truss",
+      "n1": "u2",
+      "n2": "u3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "vert2",
+      "type": "truss",
+      "n1": "d2",
+      "n2": "u2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "chord_bot3",
+      "type": "truss",
+      "n1": "d3",
+      "n2": "d4",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "chord_top3",
+      "type": "truss",
+      "n1": "u3",
+      "n2": "u4",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.08
+      }
+    },
+    {
+      "id": "vert3",
+      "type": "truss",
+      "n1": "d3",
+      "n2": "u3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "vert4",
+      "type": "truss",
+      "n1": "d4",
+      "n2": "u4",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "diag0",
+      "type": "truss",
+      "n1": "d0",
+      "n2": "u1",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "diag1",
+      "type": "truss",
+      "n1": "d1",
+      "n2": "u2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "diag2",
+      "type": "truss",
+      "n1": "d2",
+      "n2": "u3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    },
+    {
+      "id": "diag3",
+      "type": "truss",
+      "n1": "d3",
+      "n2": "u4",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "circle",
+        "d_m": 0.06
+      }
+    }
+  ],
+  "supports": [
+    {
+      "node": "d0",
+      "ux": true,
+      "uy": true,
+      "uz": true
+    },
+    {
+      "node": "d4",
+      "ux": false,
+      "uy": true,
+      "uz": true
+    }
+  ],
+  "loads": [
+    {
+      "case": "live",
+      "type": "point",
+      "node": "d1",
+      "fy_N": -20000
+    },
+    {
+      "case": "live",
+      "type": "point",
+      "node": "d2",
+      "fy_N": -20000
+    },
+    {
+      "case": "live",
+      "type": "point",
+      "node": "d3",
+      "fy_N": -20000
+    },
+    {
+      "case": "dead",
+      "type": "self_weight"
+    }
+  ],
+  "combinations": [
+    {
+      "name": "1.5(DL+LL)",
+      "factors": {
+        "dead": 1.5,
+        "live": 1.5
+      }
+    }
+  ],
+  "expected": {
+    "reaction_d0_kN": 30
+  }
+}

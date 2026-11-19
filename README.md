@@ -219,3 +219,31 @@ docs/*.md
   protection systems. See `docs/ELECTRICAL.md` and
   `docs/TEST_RESULTS_STAGE8.md`.
 - Tests: `backend/test_stage8.py` **71/71**.
+
+## Stage 9 — Structural Engineering Laboratory (19 Nov 2026)
+
+- **Real structural solver** (`backend/structure.py`):
+  direct-stiffness analysis for 3D trusses and Euler-Bernoulli
+  beams — reactions, displacements, shear/moment/axial
+  diagrams, stress and utilisation, Euler/Johnson member
+  buckling, modal frequencies and mode shapes. CalculiX,
+  Code_Aster and Elmer are not installed on this machine, so
+  this is our own solver — documented, not hidden.
+- **Structural workspace** (`structural.html`): 3D designer
+  (nodes, members, supports, loads, combinations), deformed
+  shape and utilisation colouring, member diagrams, analysis
+  jobs, calculations, standards status, AI assistant that
+  reads only real results, reports (HTML, CSV, print-to-PDF),
+  import from the project's 3D model.
+- **6 analytical structural solvers**: column buckling, fixed
+  beam, natural frequency, IS 875 wind and IS 1893 seismic
+  formula calculators, load combinations.
+- **6 demo structures**: SS beam, cantilever, 2D truss, portal
+  frame, truss bridge, column buckling — all verified against
+  analytical references.
+- **Honest limits:** first-order, linear-elastic only; no
+  plate/shell/solid FEA; no code compliance (IS 800 / IS 456 /
+  AISC / Eurocodes not implemented); nothing validated for
+  construction. See `docs/STRUCTURAL.md` and
+  `docs/TEST_RESULTS_STAGE9.md`.
+- Tests: `backend/test_stage9.py` **80/80**.

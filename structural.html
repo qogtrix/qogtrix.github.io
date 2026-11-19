@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Structural Engineering Laboratory — AI Engineering Laboratory</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .struct-layout { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
+  @media (max-width: 1100px) { .struct-layout { grid-template-columns: 1fr; } }
+  #viewport { width: 100%; height: 480px; background: #0b0e14; border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  .safety { background: #3a2a00; border: 1px solid #8a6d00; color: #ffe08a; padding: 10px 12px; border-radius: 8px; }
+  .warn-list { color: #ffb020; }
+  table.results td, table.results th { padding: 4px 8px; }
+  .field-row label { min-width: 120px; }
+  .diagram { width: 100%; height: 200px; background: var(--hatch-widget-surface); border: 1px solid var(--hatch-widget-border); border-radius: 8px; }
+  .pill-ok { color: #4ade80; } .pill-warn { color: #facc15; } .pill-bad { color: #f87171; }
+  .legend span { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .editor-table input, .editor-table select { width: 100%; }
+  .editor-table td { padding: 3px 4px; }
+  .checkgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .checkgrid label { font-size: 12px; }
+  details { margin: 8px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="sidebar">
+    <div class="brand">AI Engineering<br>Laboratory</div>
+    <div class="brand-sub">Stage 9 · Structural</div>
+    <nav>
+      <a class="nav-link" href="index.html"><span class="ic">⌂</span> Dashboard</a>
+      <a class="nav-link" href="projects.html"><span class="ic">▦</span> My Projects</a>
+      <a class="nav-link" href="gallery.html"><span class="ic">▤</span> Public Gallery</a>
+      <a class="nav-link" href="materials.html"><span class="ic">▣</span> Materials Library</a>
+      <a class="nav-link" href="workspace.html"><span class="ic">⬡</span> 3D Workspace</a>
+      <a class="nav-link" href="simulate.html"><span class="ic">▶</span> Simulation</a>
+      <a class="nav-link" href="mechanical.html"><span class="ic">⚙</span> Mechanical Lab</a>
+      <a class="nav-link" href="electrical.html"><span class="ic">⚡</span> Electrical Lab</a>
+      <a class="nav-link active" href="structural.html"><span class="ic">▦</span> Structural Lab</a>
+      <a class="nav-link" href="labs/structural.html"><span class="ic">⌁</span> Structural (lab page)</a>
+      <a class="nav-link" href="auth.html"><span class="ic">◉</span> Sign in</a>
+      <a class="nav-link" href="settings.html"><span class="ic">⚙</span> Settings</a>
+    </nav>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <h1>Structural Engineering Laboratory</h1>
+      <span class="badge stage">STAGE 9</span>
+    </div>
+
+    <div class="safety">
+      <strong>Structural safety.</strong> Everything here is a <em>conceptual / preliminary design</em>
+      analysed by a real direct-stiffness solver. <strong>Nothing on this page is validated for
+      construction.</strong> A completed analysis is not a code check and never makes a structure safe
+      to build. Real structures need a licensed structural engineer, local codes (IS 800, IS 456,
+      IS 875, IS 1893, AISC, Eurocodes), connection design, foundations, and site-specific loads.
+    </div>
+
+    <div class="tabs" style="margin-top:12px">
+      <button class="tab active" data-tab="designer">Structure Designer</button>
+      <button class="tab" data-tab="analysis">Analysis &amp; Results</button>
+      <button class="tab" data-tab="calcs">Calculations</button>
+      <button class="tab" data-tab="standards">Standards</button>
+      <button class="tab" data-tab="assistant">AI Assistant</button>
+      <button class="tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ============ DESIGNER ============ -->
+    <section id="tab-designer">
+      <div class="card">
+        <div class="field-row">
+          <label for="project-select">Project</label>
+          <select id="project-select"><option value="">(guest — structure saved locally only)</option></select>
+          <label for="demo-select">Demo structure</label>
+          <select id="demo-select">
+            <option value="">— load a demo —</option>
+            <option value="simply_supported_beam">Simply supported beam (4 m, 10 kN)</option>
+            <option value="cantilever">Cantilever (2 m, 5 kN tip)</option>
+            <option value="truss_2d">2D Pratt truss (6 m span)</option>
+            <option value="portal_frame">Portal frame (UDL + wind)</option>
+            <option value="truss_bridge">Truss bridge (12 m span)</option>
+            <option value="column_buckling">Column buckling (3 m, 100 kN)</option>
+          </select>
+          <button class="btn" id="btn-save-json">Save JSON</button>
+          <button class="btn" id="btn-load-json">Load JSON</button>
+          <input type="file" id="file-json" accept=".json" hidden>
+          <button class="btn" id="btn-import-model" title="Turn beam / pipe / shaft components of this project's 3D model into structural members">Import from 3D model</button>
+        </div>
+        <p class="small muted" id="struct-status">Build a structure from nodes, members, supports and loads. Units: metres, newtons, pascals. Y is up.</p>
+      </div>
+
+      <div class="struct-layout">
+        <div>
+          <div class="card">
+            <h3>Nodes</h3>
+            <div class="field-row"><label>X (m)</label><input id="node-x" type="number" step="0.1" value="0"></div>
+            <div class="field-row"><label>Y (m)</label><input id="node-y" type="number" step="0.1" value="0"></div>
+            <div class="field-row"><label>Z (m)</label><input id="node-z" type="number" step="0.1" value="0"></div>
+            <div class="field-row"><label>Mass (kg, opt.)</label><input id="node-mass" type="number" step="0.1" placeholder="—"></div>
+            <button class="btn" id="btn-add-node">Add node</button>
+            <table class="results editor-table" id="nodes-table" style="margin-top:8px">
+              <thead><tr><th>ID</th><th>X</th><th>Y</th><th>Z</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>Members</h3>
+            <div class="field-row"><label>From node</label><select id="mem-n1"></select></div>
+            <div class="field-row"><label>To node</label><select id="mem-n2"></select></div>
+            <div class="field-row"><label>Type</label><select id="mem-type"><option value="beam">Beam (frame, 12 DOF)</option><option value="truss">Truss (axial only)</option></select></div>
+            <div class="field-row"><label>Section</label><select id="mem-section-type">
+              <option value="rectangle">Rectangle (b × h)</option>
+              <option value="circle">Circle (d)</option>
+              <option value="ibeam">I-beam</option>
+              <option value="box">Box (hollow)</option>
+            </select></div>
+            <div class="field-row"><label>b (m)</label><input id="mem-b" type="number" step="0.01" value="0.1"></div>
+            <div class="field-row"><label>h (m)</label><input id="mem-h" type="number" step="0.01" value="0.2"></div>
+            <div class="field-row"><label>d (m)</label><input id="mem-d" type="number" step="0.01" value="0.1"></div>
+            <div class="field-row"><label>Material</label><select id="mem-material"></select></div>
+            <div class="field-row"><label>K factor</label><input id="mem-k" type="number" step="0.1" value="1.0" title="Effective length factor for buckling"></div>
+            <button class="btn" id="btn-add-member">Add member</button>
+            <table class="results editor-table" id="members-table" style="margin-top:8px">
+              <thead><tr><th>ID</th><th>Type</th><th>Nodes</th><th>Section</th><th>Material</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>Supports</h3>
+            <div class="field-row"><label>Node</label><select id="sup-node"></select></div>
+            <div class="field-row"><label>Preset</label><select id="sup-preset">
+              <option value="fixed">Fixed (all 6 DOF)</option>
+              <option value="pin">Pin (translations only)</option>
+              <option value="roller">Roller (uy, uz only)</option>
+              <option value="custom">Custom</option>
+            </select></div>
+            <div class="checkgrid" id="sup-dofs">
+              <label><input type="checkbox" data-dof="ux" checked> ux</label>
+              <label><input type="checkbox" data-dof="uy" checked> uy</label>
+              <label><input type="checkbox" data-dof="uz" checked> uz</label>
+              <label><input type="checkbox" data-dof="rx" checked> rx</label>
+              <label><input type="checkbox" data-dof="ry" checked> ry</label>
+              <label><input type="checkbox" data-dof="rz" checked> rz</label>
+            </div>
+            <p class="small muted">A beam line needs at least one support restraining torsion about the member axis (rx for a beam along X, ry for a vertical column), otherwise it is a rigid-body mechanism.</p>
+            <button class="btn" id="btn-add-support">Add / replace support</button>
+            <table class="results editor-table" id="supports-table" style="margin-top:8px">
+              <thead><tr><th>Node</th><th>Restrained</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>Loads &amp; combinations</h3>
+            <div class="field-row"><label>Case</label><input id="load-case" value="dead" placeholder="dead / live / wind / seismic / snow / thermal"></div>
+            <div class="field-row"><label>Type</label><select id="load-type">
+              <option value="point">Point load at node</option>
+              <option value="distributed">Distributed load on member</option>
+              <option value="self_weight">Self-weight (whole structure)</option>
+              <option value="thermal">Thermal ΔT on member</option>
+            </select></div>
+            <div class="field-row"><label>Node / member</label><select id="load-target"></select></div>
+            <div class="field-row"><label>Fx (N)</label><input id="load-fx" type="number" step="100" value="0"></div>
+            <div class="field-row"><label>Fy (N)</label><input id="load-fy" type="number" step="100" value="-10000"></div>
+            <div class="field-row"><label>Fz (N)</label><input id="load-fz" type="number" step="100" value="0"></div>
+            <div class="field-row"><label>w (N/m) / ΔT (K)</label><input id="load-w" type="number" step="100" value="-10000"></div>
+            <div class="field-row"><label>Direction</label><select id="load-coords"><option value="global">Global</option><option value="local">Local (member)</option></select></div>
+            <button class="btn" id="btn-add-load">Add load</button>
+            <table class="results editor-table" id="loads-table" style="margin-top:8px">
+              <thead><tr><th>Case</th><th>Type</th><th>Target</th><th>Value</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <h4 style="margin-top:12px">Load combinations</h4>
+            <div class="field-row"><label>Name</label><input id="combo-name" value="1.5(DL+LL)"></div>
+            <div class="field-row"><label>Factors (JSON)</label><input id="combo-factors" value='{"dead": 1.5, "live": 1.5}'></div>
+            <button class="btn" id="btn-add-combo">Add combination</button>
+            <table class="results editor-table" id="combos-table" style="margin-top:8px">
+              <thead><tr><th>Name</th><th>Factors</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="field-row">
+              <label>Colour by</label>
+              <select id="view-colour"><option value="material">Material</option><option value="utilization">Utilisation</option><option value="stress">Stress</option></select>
+              <label><input type="checkbox" id="view-deformed"> Show deformed shape</label>
+              <label>Exaggeration</label><input id="view-exagg" type="number" step="10" value="100" style="width:80px">
+              <label><input type="checkbox" id="view-loads" checked> Loads &amp; supports</label>
+              <button class="btn" id="btn-fit-view">Fit view</button>
+            </div>
+            <div id="viewport"></div>
+            <p class="small muted legend">
+              <span style="background:#4ade80"></span>OK (util &lt; 0.8)
+              <span style="background:#facc15"></span>Marginal (0.8–1.0)
+              <span style="background:#f87171"></span>Overstressed (&gt; 1.0)
+              <span style="background:#38bdf8"></span>Compression / buckling-critical
+            </p>
+            <p class="small muted">Drag to orbit, scroll to zoom, right-drag to pan. Click a member to select it and see its diagrams.</p>
+          </div>
+          <div class="card">
+            <h3>Selected member</h3>
+            <div id="selected-member"><p class="muted">No member selected.</p></div>
+            <div id="member-diagrams" hidden>
+              <h4>Axial force</h4><canvas class="diagram" id="chart-axial"></canvas>
+              <h4>Shear force</h4><canvas class="diagram" id="chart-shear"></canvas>
+              <h4>Bending moment</h4><canvas class="diagram" id="chart-moment"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ANALYSIS ============ -->
+    <section id="tab-analysis" hidden>
+      <div class="card">
+        <div class="field-row">
+          <label>Analysis</label>
+          <select id="analysis-type">
+            <option value="static">Static (reactions, displacements, forces, buckling)</option>
+            <option value="modal">Modal (natural frequencies &amp; mode shapes)</option>
+            <option value="buckling">Buckling (static run, buckling focus)</option>
+          </select>
+          <label>Load combination</label>
+          <select id="analysis-combo"><option value="">All cases (unfactored)</option></select>
+          <label>Modes</label><input id="analysis-nmodes" type="number" value="5" min="1" max="10" style="width:60px">
+          <button class="btn" id="btn-run-analysis">Run analysis</button>
+          <span id="analysis-status" class="small muted"></span>
+        </div>
+        <p class="small muted">Runs on the server (direct-stiffness solver). Requires a signed-in project; the designer works without one (guest structures are saved in your browser only).</p>
+      </div>
+      <div class="card" id="results-summary" hidden>
+        <h3>Summary</h3>
+        <div id="summary-body"></div>
+      </div>
+      <div class="card" id="results-reactions" hidden>
+        <h3>Reactions &amp; displacements</h3>
+        <table class="results" id="reactions-table"><thead><tr><th>Node</th><th>Rx (N)</th><th>Ry (N)</th><th>Rz (N)</th><th>ux (mm)</th><th>uy (mm)</th><th>uz (mm)</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card" id="results-members" hidden>
+        <h3>Member results</h3>
+        <table class="results" id="members-results-table"><thead><tr><th>Member</th><th>Axial (kN)</th><th>Shear (kN)</th><th>Moment (kN·m)</th><th>Max stress (MPa)</th><th>Utilisation</th><th>Buckling</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card" id="results-modal" hidden>
+        <h3>Natural frequencies</h3>
+        <table class="results" id="modal-table"><thead><tr><th>Mode</th><th>Frequency (Hz)</th><th>Period (s)</th><th></th></tr></thead><tbody></tbody></table>
+        <div class="field-row"><label>Animate mode</label><select id="modal-select"></select><button class="btn" id="btn-animate-mode">Play / stop</button></div>
+        <p class="small muted">Mode shapes are drawn in the 3D view (Designer tab) while playing.</p>
+      </div>
+      <div class="card" id="results-warnings" hidden>
+        <h3>Warnings</h3>
+        <ul class="warn-list" id="warnings-list"></ul>
+      </div>
+      <div class="card">
+        <h3>Analysis jobs</h3>
+        <table class="results" id="jobs-table"><thead><tr><th>Job</th><th>Solver</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- ============ CALCULATIONS ============ -->
+    <section id="tab-calcs" hidden>
+      <div class="card">
+        <p class="small muted">Closed-form engineering calculations, checked against the same references as the test suite. All inputs in SI units (m, N, Pa). Material properties come from the Materials Library — a missing property is an error, never a guess.</p>
+        <div class="field-row"><label>Calculation</label><select id="calc-select">
+          <option value="column_buckling">Column buckling (Euler / Johnson)</option>
+          <option value="fixed_beam">Fixed-fixed beam, centre point load</option>
+          <option value="natural_frequency_beam">Natural frequency of a beam</option>
+          <option value="wind_load_is875">Wind load — IS 875-3:2015 formula</option>
+          <option value="seismic_base_shear_is1893">Seismic base shear — IS 1893-1:2016 formula</option>
+          <option value="load_combination">Load combination (factored total)</option>
+        </select></div>
+        <div id="calc-form"></div>
+        <button class="btn" id="btn-run-calc">Calculate</button>
+        <div id="calc-result" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ============ STANDARDS ============ -->
+    <section id="tab-standards" hidden>
+      <div class="card">
+        <h3>Standards status — read this before trusting any number</h3>
+        <table class="results">
+          <thead><tr><th>Standard</th><th>What is implemented</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>IS 875-3:2015 (wind)</td><td>Design wind speed Vz = Vb·k1·k2·k3 and pressure pz = 0.6·Vz² as a calculator. Terrain/category factors are user inputs, not looked up from the code.</td><td>Formula calculator only</td></tr>
+            <tr><td>IS 1893-1:2016 (seismic)</td><td>Ah = (Z/2)·(I/R)·(Sa/g) and Vb = Ah·W as a calculator. Sa/g is a user input, not taken from the response spectrum.</td><td>Formula calculator only</td></tr>
+            <tr><td>IS 800 / AISC 360 (steel)</td><td>Not implemented. No member classification, no interaction equations, no connection checks.</td><td>Not implemented</td></tr>
+            <tr><td>IS 456 / ACI 318 (concrete)</td><td>Not implemented. No reinforcement design, no crack-width or deflection code checks.</td><td>Not implemented</td></tr>
+            <tr><td>Eurocodes (EN 1990–1999)</td><td>Not implemented.</td><td>Not implemented</td></tr>
+            <tr><td>Load combinations</td><td>Factor sets 1.5(DL+LL), 1.2(DL+LL+WL/EL), 1.5(DL+WL/EL), 0.9DL+1.5WL/EL, 1.5(DL+SL) applied as arithmetic only — not a code compliance check.</td><td>Arithmetic only</td></tr>
+            <tr><td>Deflection limit</td><td>Reported as a rule of thumb: L/250 for beams. Labelled as such — it is not a code check.</td><td>Rule of thumb</td></tr>
+          </tbody>
+        </table>
+        <p class="small muted" style="margin-top:8px">The solver itself is a first-order, linear-elastic direct-stiffness analysis: no P-delta / second-order effects, no system buckling (member Euler/Johnson only), no plate/shell/solid finite elements (CalculiX, Code_Aster and Elmer were checked — none is installed on this machine), no connection design, no foundation design. Treat every result as a preliminary, educational check.</p>
+      </div>
+    </section>
+
+    <!-- ============ AI ASSISTANT ============ -->
+    <section id="tab-assistant" hidden>
+      <div class="card">
+        <h3>Structural assistant</h3>
+        <p class="small muted">The assistant reads only your actual analysis results and the Materials Library. It never invents a number — if a result does not exist, it says so and asks you to run the analysis first.</p>
+        <button class="btn" id="btn-assistant-review">Review my structure</button>
+        <div id="assistant-output" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ============ REPORT ============ -->
+    <section id="tab-report" hidden>
+      <div class="card">
+        <h3>Analysis report</h3>
+        <p class="small muted">Generated from the current structure and the last analysis. Includes method, assumptions and limitations — print to PDF from your browser.</p>
+        <div class="field-row">
+          <button class="btn" id="btn-build-report">Build report</button>
+          <button class="btn" id="btn-download-csv">Download member results (CSV)</button>
+          <button class="btn" id="btn-print-report">Print / save as PDF</button>
+        </div>
+        <div id="report-body" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/materials.js"></script>
+<script type="module" src="assets/js/structural.js"></script>
+<script>
+  // Tab switching (same pattern as the other labs).
+  document.querySelectorAll('.tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      ['designer', 'analysis', 'calcs', 'standards', 'assistant', 'report'].forEach(function (t) {
+        var el = document.getElementById('tab-' + t);
+        if (el) el.hidden = (t !== btn.dataset.tab);
+      });
+    });
+  });
+</script>
+</body>
+</html>

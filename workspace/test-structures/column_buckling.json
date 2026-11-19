@@ -1,0 +1,60 @@
+{
+  "name": "Column buckling \u2014 3 m, 100x100 mm, pinned-pinned, 100 kN",
+  "nodes": [
+    {
+      "id": "n1",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "n2",
+      "x_m": 0,
+      "y_m": 3,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "e1",
+      "type": "beam",
+      "n1": "n1",
+      "n2": "n2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.1
+      },
+      "k_factor": 1.0
+    }
+  ],
+  "supports": [
+    {
+      "node": "n1",
+      "ux": true,
+      "uy": true,
+      "uz": true,
+      "ry": true
+    },
+    {
+      "node": "n2",
+      "ux": true,
+      "uy": false,
+      "uz": true,
+      "ry": true
+    }
+  ],
+  "loads": [
+    {
+      "case": "dead",
+      "type": "point",
+      "node": "n2",
+      "fy_N": -100000
+    }
+  ],
+  "expected": {
+    "critical_load_kN": 1827.7,
+    "buckling_utilization": 0.055
+  }
+}

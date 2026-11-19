@@ -1,0 +1,83 @@
+{
+  "name": "Simply supported beam \u2014 4 m, 10 kN centre load",
+  "nodes": [
+    {
+      "id": "n1",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "n2",
+      "x_m": 2,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "n3",
+      "x_m": 4,
+      "y_m": 0,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "e1",
+      "type": "beam",
+      "n1": "n1",
+      "n2": "n2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    },
+    {
+      "id": "e2",
+      "type": "beam",
+      "n1": "n2",
+      "n2": "n3",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    }
+  ],
+  "supports": [
+    {
+      "node": "n1",
+      "ux": true,
+      "uy": true,
+      "uz": true,
+      "rx": true,
+      "ry": false,
+      "rz": false
+    },
+    {
+      "node": "n3",
+      "ux": false,
+      "uy": true,
+      "uz": true,
+      "rx": true,
+      "ry": false,
+      "rz": false
+    }
+  ],
+  "loads": [
+    {
+      "case": "dead",
+      "type": "point",
+      "node": "n2",
+      "fy_N": -10000
+    }
+  ],
+  "expected": {
+    "reaction_n1_N": 5000,
+    "midspan_deflection_mm": -1.0,
+    "max_moment_Nm": 10000,
+    "max_stress_MPa": 15.0
+  }
+}

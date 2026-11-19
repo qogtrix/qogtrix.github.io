@@ -372,3 +372,45 @@ actually built and checked. Anything labelled "Stage 2" is not done.
 - [ ] No AC/synchronous/BLDC/stepper motor models yet
 - [ ] Nothing here is validated for a real electrical
       installation — conceptual designs only
+
+# Stage 9 — Structural Engineering Laboratory (19 Nov 2026)
+
+## Completed in Stage 9
+
+- [x] Structural workspace: 3D designer (nodes, members,
+      supports, loads, combinations), Three.js view with
+      deformed shape and utilisation colouring, member diagrams
+- [x] Structural analysis: real direct-stiffness solver —
+      static, reactions, displacements, shear/moment/axial
+      diagrams, stress and utilisation, buckling (Euler/Johnson),
+      modal frequencies and mode shapes
+- [x] Loads: dead, live, wind, seismic, snow, thermal, point
+      and distributed, self-weight; load cases and combinations
+      with factors
+- [x] Structural calculations: column buckling, fixed beam,
+      natural frequency, IS 875 wind and IS 1893 seismic
+      formula calculators, load combinations — formulas, units
+      and assumptions shown
+- [x] Material integration: structural steel grades, concrete,
+      aluminium, timber, composites from the Stage 4 database;
+      missing properties refused, never guessed
+- [x] AI structural assistant: reads only real analysis
+      results (weakest member, displacement, buckling-critical
+      member) and suggests concrete changes
+- [x] Reports: HTML report, member-results CSV, print-to-PDF;
+      standards status table with honest implementation status
+- [x] Testing: 6 demo structures verified against analytical
+      references; DSM solver cross-checked against the
+      analytical solvers (modal frequencies agree within 0.5%)
+
+## Honest limits
+
+- [ ] No CalculiX / Code_Aster / Elmer (not installed) — the
+      lab uses its own DSM solver for beams and trusses only;
+      no plate/shell/solid FEA
+- [ ] No code compliance: IS 800 / IS 456 / AISC 360 / ACI 318 /
+      Eurocodes not implemented; IS 875 / IS 1893 are formula
+      calculators, not code checks
+- [ ] First-order, linear-elastic only: no P-delta, no system
+      buckling, no connection or foundation design
+- [ ] Nothing here is validated for construction

@@ -214,3 +214,37 @@ are in the registry too, but they only run through the
 circuit endpoint above — posting them to
 `/api/v1/simulations` records a failed job explaining that.
 See `docs/ELECTRICAL.md` for the solver's models and limits.
+
+## Structures (Stage 9)
+
+- `GET /api/v1/structures/schema` — public. The structure JSON
+  schema: nodes, elements (beam/truss), supports (6 DOF),
+  loads, combinations, and the modelling notes (Y is up,
+  torsion-restraint convention, inactive DOFs).
+- `POST /api/v1/structures/validate` — auth. Body
+  `{structure}`; returns `{valid, errors}`.
+- `POST /api/v1/structures/analyze` — auth, owner-scoped
+  project. Body `{project_id, structure, analysis}` where
+  `analysis` is `{type: "static" | "modal" | "buckling",
+  combination?, case?, n_modes?}`. Runs the direct-stiffness
+  solver and stores the result as a simulation job with solver
+  `structural_static`, `structural_modal` or
+  `structural_buckling` (201 on success, 200 with status
+  `failed` on a solver error). Buckling is a static run whose
+  results emphasise the buckling fields.
+- `GET /api/v1/projects/{id}/structure` — auth, owner-scoped.
+  Returns `{project_id, structure}` (an empty structure when
+  none is saved yet).
+- `PUT /api/v1/projects/{id}/structure` — auth, owner-scoped.
+  Body `{structure, base_version?}`; validates the structure,
+  increments its version, returns it. A `base_version` that
+  does not match the stored version returns 409.
+
+Stage 9 adds six structural solvers to the same registry and
+job API (no new endpoints): `column_buckling`, `fixed_beam`,
+`natural_frequency_beam`, `wind_load_is875`,
+`seismic_base_shear_is1893`, `load_combination`. The structural
+solvers (`structural_static`, `structural_modal`,
+`structural_buckling`) are in the registry too, but they only
+run through the structures endpoint above — posting them to
+`/api/v1/simulations` records a failed job explaining that.

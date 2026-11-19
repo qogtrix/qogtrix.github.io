@@ -1,0 +1,121 @@
+{
+  "name": "Portal frame \u2014 4 m span, 3 m high, UDL + lateral load",
+  "nodes": [
+    {
+      "id": "A",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "B",
+      "x_m": 4,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "C",
+      "x_m": 0,
+      "y_m": 3,
+      "z_m": 0
+    },
+    {
+      "id": "D",
+      "x_m": 4,
+      "y_m": 3,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "AB",
+      "type": "beam",
+      "n1": "A",
+      "n2": "C",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    },
+    {
+      "id": "BD",
+      "type": "beam",
+      "n1": "B",
+      "n2": "D",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    },
+    {
+      "id": "CD",
+      "type": "beam",
+      "n1": "C",
+      "n2": "D",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    }
+  ],
+  "supports": [
+    {
+      "node": "A",
+      "ux": true,
+      "uy": true,
+      "uz": true,
+      "rx": true,
+      "ry": true,
+      "rz": true
+    },
+    {
+      "node": "B",
+      "ux": true,
+      "uy": true,
+      "uz": true,
+      "rx": true,
+      "ry": true,
+      "rz": true
+    }
+  ],
+  "loads": [
+    {
+      "case": "dead",
+      "type": "distributed",
+      "element": "CD",
+      "wy_N_m": -10000
+    },
+    {
+      "case": "wind",
+      "type": "point",
+      "node": "C",
+      "fx_N": 20000
+    }
+  ],
+  "combinations": [
+    {
+      "name": "1.2(DL+WL)",
+      "factors": {
+        "dead": 1.2,
+        "wind": 1.2
+      }
+    },
+    {
+      "name": "service",
+      "factors": {
+        "dead": 1.0,
+        "wind": 1.0
+      }
+    }
+  ],
+  "expected": {
+    "sum_fx_N": -20000,
+    "sum_fy_N": 40000
+  }
+}

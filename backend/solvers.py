@@ -470,6 +470,133 @@ SOLVER_REGISTRY = {
             "not_implemented instead of faking results.",
         ],
     },
+    "structural_static": {
+        "label": "Structural analysis (direct stiffness method)",
+        "method": "numerical",
+        "engine": "python-dsm (direct stiffness method, own implementation)",
+        "status": "available",
+        "inputs": ["structure", "combination"],
+        "outputs": ["nodes", "elements", "max_displacement_m",
+                    "max_utilization", "warnings"],
+        "requires": [],
+        "assumptions": [
+            "Linear elasticity, small deflections (Euler-Bernoulli beam theory)",
+            "Runs through POST /api/v1/structures/analyze, not the scalar solver endpoint",
+        ],
+    },
+    "structural_modal": {
+        "label": "Structural modal analysis (natural frequencies)",
+        "method": "numerical",
+        "engine": "python-dsm (consistent mass + Jacobi eigenvalues)",
+        "status": "available",
+        "inputs": ["structure", "n_modes"],
+        "outputs": ["modes"],
+        "requires": [],
+        "assumptions": [
+            "Undamped free vibration; consistent mass matrices",
+            "Runs through POST /api/v1/structures/analyze, not the scalar solver endpoint",
+        ],
+    },
+    "structural_buckling": {
+        "label": "Member buckling check (Euler / Johnson)",
+        "method": "analytical",
+        "engine": "python-analytical (Euler column theory)",
+        "status": "available",
+        "inputs": ["structure"],
+        "outputs": ["elements"],
+        "requires": [],
+        "assumptions": [
+            "Per-member Euler/Johnson buckling, not system (eigenvalue) buckling",
+            "Runs through POST /api/v1/structures/analyze, not the scalar solver endpoint",
+        ],
+    },
+    "column_buckling": {
+        "label": "Column buckling (Euler / Johnson parabola)",
+        "method": "analytical",
+        "engine": "python-analytical (Euler column theory)",
+        "status": "available",
+        "inputs": ["length_m", "k_factor", "section", "material_id", "load_N"],
+        "outputs": ["critical_load_N", "critical_stress_Pa", "slenderness",
+                    "regime", "utilization"],
+        "requires": ["elastic_modulus_gpa"],
+        "assumptions": [
+            "Concentric axial load; prismatic column; pinned-pinned unless k_factor says otherwise",
+            "Euler for long columns, Johnson parabola for intermediate columns (uses yield or compressive strength when recorded)",
+            "No eccentricity, no initial imperfection, no second-order effects",
+        ],
+    },
+    "fixed_beam": {
+        "label": "Fixed-fixed beam (centre point load)",
+        "method": "analytical",
+        "engine": "python-analytical (Euler-Bernoulli beam theory)",
+        "status": "available",
+        "inputs": ["length_m", "load_N", "section", "material_id"],
+        "outputs": ["deflection_m", "max_stress_Pa", "safety_factor",
+                    "end_moment_Nm", "mid_moment_Nm"],
+        "requires": ["elastic_modulus_gpa", "yield_strength_mpa"],
+        "assumptions": [
+            "Euler-Bernoulli beam theory (small deflections, linear elasticity)",
+            "Both ends fully fixed; point load at mid-span; self-weight ignored",
+        ],
+    },
+    "natural_frequency_beam": {
+        "label": "Beam natural frequency (first mode)",
+        "method": "analytical",
+        "engine": "python-analytical (Euler-Bernoulli vibration)",
+        "status": "available",
+        "inputs": ["length_m", "section", "material_id", "support"],
+        "outputs": ["frequency_hz", "angular_frequency_rad_s", "period_s"],
+        "requires": ["elastic_modulus_gpa", "density_kg_m3"],
+        "assumptions": [
+            "Uniform prismatic beam; first bending mode only",
+            "Support: cantilever (beta*L 1.875), simply supported (pi), fixed-fixed or free-free (4.730)",
+            "No damping, no added masses",
+        ],
+    },
+    "wind_load_is875": {
+        "label": "Wind load (IS 875 Part 3: 2015 formula)",
+        "method": "analytical",
+        "engine": "python-analytical (IS 875-3:2015 design wind pressure)",
+        "status": "available",
+        "inputs": ["basic_wind_speed_m_s", "k1", "k2", "k3", "area_m2",
+                   "force_coefficient"],
+        "outputs": ["design_wind_speed_m_s", "design_pressure_Pa", "wind_force_N"],
+        "requires": [],
+        "assumptions": [
+            "IS 875 (Part 3): 2015 — Vz = Vb * k1 * k2 * k3; pz = 0.6 * Vz^2",
+            "k1 (risk), k2 (terrain/height) and k3 (topography) are supplied by the user from the code tables — the lab does not look them up",
+            "Force = pz * area * Cf; this is a pressure calculation, not a full wind design or a code compliance check",
+        ],
+    },
+    "seismic_base_shear_is1893": {
+        "label": "Seismic base shear (IS 1893 Part 1: 2016 formula)",
+        "method": "analytical",
+        "engine": "python-analytical (IS 1893-1:2016 design horizontal seismic coefficient)",
+        "status": "available",
+        "inputs": ["seismic_weight_N", "zone_factor", "importance_factor",
+                   "response_reduction_factor", "sa_g"],
+        "outputs": ["design_coefficient", "base_shear_N"],
+        "requires": [],
+        "assumptions": [
+            "IS 1893 (Part 1): 2016 — Ah = (Z/2) * (I/R) * (Sa/g); Vb = Ah * W",
+            "Sa/g is supplied by the user from the code response spectrum for the building period and soil type",
+            "This is the base-shear formula only, not a full seismic design, ductile detailing or code compliance check",
+        ],
+    },
+    "load_combination": {
+        "label": "Factored load combination (IS 800 / IS 456 factor sets)",
+        "method": "analytical",
+        "engine": "python-analytical (load combination arithmetic)",
+        "status": "available",
+        "inputs": ["combination", "dead_N", "live_N", "wind_N", "seismic_N",
+                   "snow_N", "thermal_N"],
+        "outputs": ["factored_total_N", "factors"],
+        "requires": [],
+        "assumptions": [
+            "Combination factors from IS 800:2007 Table 4 / IS 456:2000 (limit state): 1.5(DL+LL), 1.2(DL+LL+WL/EL), 1.5(DL+WL/EL), 0.9DL+1.5WL/EL, 1.5(DL+SL)",
+            "Only the arithmetic is computed — choosing the governing combination and checking the design is the engineer's job",
+        ],
+    },
     "cfd": {
         "label": "Computational fluid dynamics (OpenFOAM)",
         "method": "numerical",
@@ -551,6 +678,10 @@ def run_solver(solver, inputs, material_props):
     if solver.startswith("circuit_"):
         raise ValueError("circuit solvers run through "
                          "POST /api/v1/circuits/simulate, not the scalar "
+                         "solver endpoint")
+    if solver.startswith("structural_"):
+        raise ValueError("structural solvers run through "
+                         "POST /api/v1/structures/analyze, not the scalar "
                          "solver endpoint")
     # Material requirements.
     props = {}
@@ -1014,5 +1145,128 @@ def run_solver(solver, inputs, material_props):
         R = rho * length / (area_mm2 * 1e-6)
         return {"resistance_ohm": R, "resistivity_ohm_m": rho,
                 "voltage_drop_V": I * R, "power_loss_W": I * I * R}
+
+    if solver == "column_buckling":
+        L = _need_number(inputs, "length_m")
+        kf = inputs.get("k_factor", 1.0)
+        if not isinstance(kf, (int, float)) or isinstance(kf, bool) or kf <= 0:
+            raise ValueError("k_factor must be a positive number")
+        area, I, _J, _c = section_properties(inputs.get("section") or {})
+        E = props["elastic_modulus_gpa"] * 1e9
+        # Second moment about the weak axis needs both Iy and Iz.
+        import structure as _struct
+        sec2 = _struct.section_properties_2d(inputs.get("section") or {})
+        Imin = min(sec2["Iy_m4"], sec2["Iz_m4"])
+        r = math.sqrt(Imin / area)
+        Le = kf * L
+        lam = Le / r
+        Pcr = math.pi ** 2 * E * Imin / Le ** 2
+        sig_cr_euler = Pcr / area
+        strength = (props.get("yield_strength_mpa")
+                    or props.get("compressive_strength_mpa"))
+        load = inputs.get("load_N")
+        if load is not None and (not isinstance(load, (int, float))
+                                 or isinstance(load, bool)):
+            raise ValueError("load_N must be a number")
+        if strength is not None:
+            sy = float(strength) * 1e6
+            lam_c = math.sqrt(2 * math.pi ** 2 * E / sy)
+            if lam >= lam_c:
+                sig_cr, regime = sig_cr_euler, "euler"
+            else:
+                sig_cr = sy * (1 - sy * lam ** 2 / (4 * math.pi ** 2 * E))
+                regime = "johnson"
+        else:
+            sig_cr, regime = sig_cr_euler, "euler"
+        out = {"critical_load_N": Pcr, "critical_stress_Pa": sig_cr,
+               "slenderness": lam, "effective_length_m": Le,
+               "regime": regime, "radius_of_gyration_m": r}
+        if load is not None:
+            out["utilization"] = abs(float(load)) / Pcr
+        return out
+    if solver == "fixed_beam":
+        L = _need_number(inputs, "length_m")
+        F = _need_number(inputs, "load_N", positive=False)
+        area, I, _J, c = section_properties(inputs.get("section") or {})
+        E = props["elastic_modulus_gpa"] * 1e9
+        yld = props["yield_strength_mpa"] * 1e6
+        delta = F * L ** 3 / (192 * E * I)
+        moment = F * L / 8
+        stress = moment * c / I
+        return {"deflection_m": delta, "end_moment_Nm": moment,
+                "mid_moment_Nm": moment, "max_stress_Pa": stress,
+                "safety_factor": _safety_factor(yld, stress),
+                "section_area_m2": area, "second_moment_m4": I}
+    if solver == "natural_frequency_beam":
+        L = _need_number(inputs, "length_m")
+        area, I, _J, _c = section_properties(inputs.get("section") or {})
+        E = props["elastic_modulus_gpa"] * 1e9
+        rho = props["density_kg_m3"]
+        support = inputs.get("support", "cantilever")
+        beta = {"cantilever": 1.87510407,
+                "simply_supported": math.pi,
+                "fixed_fixed": 4.73004074,
+                "free_free": 4.73004074}.get(support)
+        if beta is None:
+            raise ValueError("support must be cantilever, simply_supported, "
+                             "fixed_fixed or free_free")
+        m_per_m = rho * area
+        # Weak-axis bending gives the lowest frequency; report both.
+        import structure as _struct
+        sec2 = _struct.section_properties_2d(inputs.get("section") or {})
+        Imin = min(sec2["Iy_m4"], sec2["Iz_m4"])
+        Imax = max(sec2["Iy_m4"], sec2["Iz_m4"])
+        f_min = beta ** 2 / (2 * math.pi) * math.sqrt(E * Imin / (m_per_m * L ** 4))
+        f_max = beta ** 2 / (2 * math.pi) * math.sqrt(E * Imax / (m_per_m * L ** 4))
+        return {"frequency_hz": f_min,
+                "frequency_weak_axis_hz": f_min,
+                "frequency_strong_axis_hz": f_max,
+                "angular_frequency_rad_s": 2 * math.pi * f_min,
+                "period_s": 1 / f_min if f_min else None}
+    if solver == "wind_load_is875":
+        Vb = _need_number(inputs, "basic_wind_speed_m_s")
+        k1 = _need_number(inputs, "k1", positive=False)
+        k2 = _need_number(inputs, "k2", positive=False)
+        k3 = _need_number(inputs, "k3", positive=False)
+        area = _need_number(inputs, "area_m2")
+        cf = inputs.get("force_coefficient", 1.0)
+        if not isinstance(cf, (int, float)) or isinstance(cf, bool) or cf < 0:
+            raise ValueError("force_coefficient must be a number >= 0")
+        Vz = Vb * k1 * k2 * k3
+        pz = 0.6 * Vz ** 2
+        return {"design_wind_speed_m_s": Vz, "design_pressure_Pa": pz,
+                "wind_force_N": pz * area * cf}
+    if solver == "seismic_base_shear_is1893":
+        W = _need_number(inputs, "seismic_weight_N")
+        Z = _need_number(inputs, "zone_factor", positive=False)
+        I = _need_number(inputs, "importance_factor", positive=False)
+        R = _need_number(inputs, "response_reduction_factor")
+        sa_g = _need_number(inputs, "sa_g", positive=False)
+        Ah = (Z / 2) * (I / R) * sa_g
+        return {"design_coefficient": Ah, "base_shear_N": Ah * W}
+    if solver == "load_combination":
+        combos = {
+            "1.5(DL+LL)": {"dead": 1.5, "live": 1.5},
+            "1.2(DL+LL+WL)": {"dead": 1.2, "live": 1.2, "wind": 1.2},
+            "1.2(DL+LL+EL)": {"dead": 1.2, "live": 1.2, "seismic": 1.2},
+            "1.5(DL+WL)": {"dead": 1.5, "wind": 1.5},
+            "1.5(DL+EL)": {"dead": 1.5, "seismic": 1.5},
+            "0.9DL+1.5WL": {"dead": 0.9, "wind": 1.5},
+            "0.9DL+1.5EL": {"dead": 0.9, "seismic": 1.5},
+            "1.5(DL+SL)": {"dead": 1.5, "snow": 1.5},
+        }
+        name = inputs.get("combination")
+        if name not in combos:
+            raise ValueError("combination must be one of: "
+                             + ", ".join(combos))
+        factors = combos[name]
+        total = 0.0
+        for case, fac in factors.items():
+            v = inputs.get(case + "_N", 0)
+            if not isinstance(v, (int, float)) or isinstance(v, bool):
+                raise ValueError(f"{case}_N must be a number")
+            total += fac * float(v)
+        return {"factored_total_N": total, "factors": factors,
+                "combination": name}
     raise ValueError(f"no implementation for solver: {solver}")
-    raise ValueError(f"solver {solver} has no analytical implementation")
+

@@ -224,3 +224,44 @@ volume the API returns as null (booleans, imported meshes).
 - **Never present a design as safe to build:** everything
   here is conceptual until a qualified engineer reviews it
   and real hardware is tested. Say that with every design.
+
+## Structural engineering (Stage 9) — structured tools for Muse
+
+- **Build a structure from a request:** translate the request
+  into nodes, elements, supports and loads from the structure
+  schema (`GET /api/v1/structures/schema`). Members are
+  `beam` (frame, 12 DOF) or `truss` (axial only). Sections:
+  rectangle, circle, ibeam, box — all dimensions in metres.
+  Materials come from the Stage 4 database by id; check the
+  material first, because a missing property is an error,
+  never a guess. Validate with
+  `POST /api/v1/structures/validate` before running.
+- **Mind the torsion convention:** a straight beam line needs
+  at least one support restraining torsion about the member
+  axis (rx for a beam along X, ry for a vertical column) —
+  the Pin preset does this. A model without it is refused as
+  unstable, and that is the solver being correct, not a bug.
+- **Run a real analysis:** `POST /api/v1/structures/analyze`
+  with `analysis` `{type: "static"}`, `{type: "modal",
+  n_modes}` or `{type: "buckling"}`. Read the job's results:
+  reactions, displacements, per-member diagrams (11 stations),
+  max stress, utilisation, buckling (Pcr, regime, utilisation),
+  modal frequencies and shapes. Cross-check the DSM result
+  against the analytical solvers for the same case (SS beam
+  deflection, cantilever frequency, column Pcr) and say so
+  when they agree — and when they do not.
+- **Calculate first, analyse second:** for a quick answer use
+  the analytical solvers through the job API
+  (`column_buckling`, `fixed_beam`, `natural_frequency_beam`,
+  `wind_load_is875`, `seismic_base_shear_is1893`,
+  `load_combination`). The wind and seismic solvers are
+  formula calculators with user-supplied factors — say that,
+  and never present their output as a code check.
+- **Save the structure:** `PUT /api/v1/projects/{id}/structure`
+  with `base_version` from the last GET; a 409 means the
+  structure changed elsewhere — reload and re-apply.
+- **Never call a structure safe to build.** The solver is
+  first-order, linear-elastic, preliminary only. No code
+  compliance exists in this lab (IS 800 / IS 456 / AISC /
+  Eurocodes not implemented), no connection or foundation
+  design, no P-delta. Say so whenever a result is reported.

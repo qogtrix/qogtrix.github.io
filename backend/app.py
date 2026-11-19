@@ -27,6 +27,7 @@ import db as dbmod
 import model as modelmod
 import solvers as solversmod
 import circuit as circuitmod
+import structure as structuremod
 
 LABS = {"general", "mechanical", "electrical", "structural",
         "aerospace", "robotics", "materials"}
@@ -192,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
             method = self.command
             query = parse_qs(parsed.query)
             if path == "/health" and method == "GET":
-                return self._send(200, {"status": "ok", "stage": 8,
+                return self._send(200, {"status": "ok", "stage": 9,
                                         "solver_available": False})
             if path == "/api/v1/material-categories" and method == "GET":
                 cats = _load_data_file("material_categories.json") or {"categories": []}
@@ -215,6 +216,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_public_projects(path, method, query)
             if "/model" in path and path.startswith("/api/v1/projects/"):
                 return self._route_model(path, method, query)
+            if "/structure" in path and path.startswith("/api/v1/projects/"):
+                return self._route_project_structure(path, method, query)
             if path.startswith("/api/v1/projects"):
                 return self._route_projects(path, method, query)
             if path == "/api/v1/solvers" and method == "GET":
@@ -223,6 +226,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._route_simulations(path, method, query)
             if path.startswith("/api/v1/circuits"):
                 return self._route_circuits(path, method, query)
+            if path.startswith("/api/v1/structures"):
+                return self._route_structures(path, method, query)
             if path.startswith("/api/v1/simulate/"):
                 return self._send(501, {"status": "not_implemented",
                                         "stage": 3,
@@ -964,6 +969,139 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {**self._sim_public(
                     self._own_simulation(sid, user["id"])),
                     "note": "Circuit simulation failed: " + str(e)})
+            self.conn.execute(
+                "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                " solver_version, status, inputs, results, created_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (sid, pid, user["id"], solver, meta["engine"],
+                 "completed", json.dumps(inputs),
+                 json.dumps({"method": meta["method"],
+                             "engine": meta["engine"],
+                             "assumptions": meta["assumptions"],
+                             "values": result}), now_iso()))
+            self.conn.commit()
+            return self._send(201, self._sim_public(
+                self._own_simulation(sid, user["id"])))
+        raise ApiError(404, "Not found")
+
+    # -- structural model + analysis (Stage 9) -------------------------
+
+    def _structure_of(self, row):
+        payload = json.loads(row["payload"] or "{}")
+        structure = payload.get("structure") or {
+            "version": 1, "nodes": [], "elements": [],
+            "supports": [], "loads": [], "combinations": []}
+        return payload, structure
+
+    def _save_structure(self, pid, owner_id, payload, structure):
+        payload["structure"] = structure
+        self.conn.execute(
+            "UPDATE projects SET payload=? WHERE id=? AND owner_id=?",
+            (json.dumps(payload), pid, owner_id))
+        self.conn.commit()
+
+    def _route_project_structure(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # /api/v1/projects/<pid>/structure
+        if len(parts) < 5 or parts[4] != "structure":
+            raise ApiError(404, "Not found")
+        user = self._current_user()
+        pid = parts[3]
+        row = self._own_project(pid, user["id"])
+        payload, structure = self._structure_of(row)
+        if len(parts) == 5:
+            if method == "GET":
+                return self._send(200, {"project_id": pid,
+                                        "structure": structure})
+            if method == "PUT":
+                data = self._read_json()
+                candidate = data.get("structure")
+                if not isinstance(candidate, dict):
+                    raise ApiError(400, "Body must contain a structure object")
+                base_version = data.get("base_version")
+                if base_version is not None and base_version != structure["version"]:
+                    raise ApiError(409, "This structure was changed elsewhere "
+                                        f"(current version {structure['version']}, "
+                                        f"you based your edit on {base_version}). "
+                                        "Reload the structure and re-apply your change.")
+                errors = structuremod.validate_structure(
+                    candidate, self._material_ids())
+                if errors:
+                    raise ApiError(400, "Invalid structure: " + "; ".join(errors))
+                candidate["version"] = structure["version"] + 1
+                self._save_structure(pid, user["id"], payload, candidate)
+                return self._send(200, {"project_id": pid,
+                                        "structure": candidate})
+            raise ApiError(404, "Not found")
+        raise ApiError(404, "Not found")
+
+    def _route_structures(self, path, method, query):
+        parts = [p for p in path.split("/") if p]
+        # GET /api/v1/structures/schema — public.
+        if len(parts) == 4 and parts[3] == "schema" and method == "GET":
+            return self._send(200, {"schema": structuremod.STRUCTURE_SCHEMA})
+        user = self._current_user()
+        # POST /api/v1/structures/validate — auth, no project needed.
+        if len(parts) == 4 and parts[3] == "validate" and method == "POST":
+            data = self._read_json()
+            structure = data.get("structure")
+            if not isinstance(structure, dict):
+                raise ApiError(400, "Body must contain a structure object")
+            errors = structuremod.validate_structure(
+                structure, self._material_ids())
+            return self._send(200, {"valid": not errors, "errors": errors})
+        # POST /api/v1/structures/analyze — auth, owner-scoped project.
+        if len(parts) == 4 and parts[3] == "analyze" and method == "POST":
+            data = self._read_json()
+            pid = str(data.get("project_id", "")).strip()
+            if not pid:
+                raise ApiError(400, "project_id is required")
+            self._own_project(pid, user["id"])
+            structure = data.get("structure")
+            if not isinstance(structure, dict):
+                raise ApiError(400, "Body must contain a structure object")
+            analysis = data.get("analysis") or {}
+            if not isinstance(analysis, dict):
+                raise ApiError(400, "analysis must be an object")
+            atype = str(analysis.get("type", "static")).strip()
+            if atype not in ("static", "modal", "buckling"):
+                raise ApiError(400, "analysis.type must be static, modal or buckling")
+            solver = "structural_" + atype
+            meta = solversmod.SOLVER_REGISTRY[solver]
+            inputs = {"structure": structure, "analysis": analysis}
+            sid = dbmod.new_id("sim")
+
+            def props_fn(mid):
+                return self._material_props(mid)
+
+            try:
+                if atype == "static":
+                    result = structuremod.analyze_static(
+                        structure, props_fn,
+                        combination=analysis.get("combination"),
+                        case=analysis.get("case"))
+                elif atype == "modal":
+                    result = structuremod.analyze_modal(
+                        structure, props_fn,
+                        n_modes=int(analysis.get("n_modes", 5)))
+                else:  # buckling: static analysis, buckling fields included
+                    result = structuremod.analyze_static(
+                        structure, props_fn,
+                        combination=analysis.get("combination"),
+                        case=analysis.get("case"))
+                    result["analysis"] = "buckling"
+            except (ValueError, TypeError) as e:
+                self.conn.execute(
+                    "INSERT INTO simulations(id, project_id, owner_id, solver,"
+                    " solver_version, status, inputs, results, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, pid, user["id"], solver, meta["engine"],
+                     "failed", json.dumps(inputs),
+                     json.dumps({"error": str(e)}), now_iso()))
+                self.conn.commit()
+                return self._send(200, {**self._sim_public(
+                    self._own_simulation(sid, user["id"])),
+                    "note": "Structural analysis failed: " + str(e)})
             self.conn.execute(
                 "INSERT INTO simulations(id, project_id, owner_id, solver,"
                 " solver_version, status, inputs, results, created_at)"

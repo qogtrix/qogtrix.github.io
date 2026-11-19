@@ -1,0 +1,55 @@
+{
+  "name": "Cantilever beam \u2014 2 m, 5 kN tip load",
+  "nodes": [
+    {
+      "id": "n1",
+      "x_m": 0,
+      "y_m": 0,
+      "z_m": 0
+    },
+    {
+      "id": "n2",
+      "x_m": 2,
+      "y_m": 0,
+      "z_m": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": "e1",
+      "type": "beam",
+      "n1": "n1",
+      "n2": "n2",
+      "material_id": "steel-s355",
+      "section": {
+        "type": "rectangle",
+        "b_m": 0.1,
+        "h_m": 0.2
+      }
+    }
+  ],
+  "supports": [
+    {
+      "node": "n1",
+      "ux": true,
+      "uy": true,
+      "uz": true,
+      "rx": true,
+      "ry": true,
+      "rz": true
+    }
+  ],
+  "loads": [
+    {
+      "case": "dead",
+      "type": "point",
+      "node": "n2",
+      "fy_N": -5000
+    }
+  ],
+  "expected": {
+    "reaction_n1_N": 5000,
+    "tip_deflection_mm": -1.0,
+    "fixed_end_moment_Nm": -10000
+  }
+}

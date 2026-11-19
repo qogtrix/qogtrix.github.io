@@ -43,13 +43,15 @@
     <section class="hero">
       <div class="icon" style="font-size:2rem">🏗</div>
       <h1>Structural Engineering</h1>
+    <p><a class="button primary" href="../structural.html">Open the Structural Workspace →</a></p>
+    <p class="small muted">Stage 9: structural designer with a real direct-stiffness solver, buckling and modal analysis, IS 875 / IS 1893 load calculators, and reports.</p>
       <p>Frames, beams and buildings that stand up.</p>
-      <p>Beams, columns, frames and connections. Stage 1: frame geometry preview and section library. Stage 2: frame analysis and code checks.</p>
+      <p>Beams, columns, frames and connections. Stage 1: frame geometry preview and section library. Stage 9: real frame analysis with a direct-stiffness solver (no FEA package installed — see the Standards tab in the workspace).</p>
     </section>
 
     <div class="grid cols-2">
       <div class="card"><h3>✓ Works in Stage 1</h3><ul><li>3D frame geometry preview</li><li>Structural section library (IPE, SHS)</li><li>Project workspace</li></ul></div>
-      <div class="card"><h3>Planned — Stage 2</h3><ul><li>Frame / beam solver</li><li>Deflection and code checks</li></ul><p class="small muted">These are not built yet. No button on this page pretends otherwise.</p></div>
+      <div class="card"><h3>✓ Built in Stage 9</h3><ul><li>Direct-stiffness frame / truss solver (real, tested against beam theory)</li><li>Buckling (Euler / Johnson) and modal analysis</li><li>Load cases, combinations, wind &amp; seismic calculators</li></ul><p class="small muted">Preliminary checks only — no code compliance (IS 800 / IS 456 / AISC / Eurocodes not implemented) and nothing here is safe to build from.</p></div>
     </div>
 
     <h2>3D preview — frame</h2>
@@ -85,8 +87,8 @@
     </table></div>
 
     <h2>Simulation</h2>
-    <div class="notice warn">⚠ <strong>Stage 2 — Not yet implemented.</strong> No solver is installed in Stage 1, so there is no result to show. The button below is disabled on purpose; Stage 2 will add a real open-source solver behind it, and results will only appear once that solver has actually run. See <a href="../docs/STATUS.md">STATUS.md</a>.</div>
-    <div class="btn-row"><button disabled>Run simulation — Stage 2</button></div>
+    <div class="notice">✓ <strong>Stage 9 — Implemented.</strong> The Structural Workspace runs a real direct-stiffness solver on the server: reactions, displacements, shear/moment diagrams, buckling and natural frequencies, validated against hand-computed references (see <a href="../docs/TEST_RESULTS_STAGE9.md">TEST_RESULTS_STAGE9.md</a>). No FEA package (CalculiX / Code_Aster / Elmer) is installed on this machine, so there is no plate/shell/solid finite-element analysis — and no result here is a code check or a design approval.</div>
+    <div class="btn-row"><a class="button primary" href="../structural.html">Open the Structural Workspace →</a></div>
     <p class="small muted"><a href="../index.html">← Back to dashboard</a> · <a href="../workspace.html">Open full 3D workspace →</a></p>
   </main>
   <footer>AI Engineering Laboratory · Stage 1 Foundation · Structural Engineering</footer>

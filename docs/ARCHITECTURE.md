@@ -519,3 +519,63 @@ docs/MATERIALS.md  docs/TEST_RESULTS_STAGE4.md
   protection systems, BJT/MOSFET/op-amp models are
   simplified (see docs/ELECTRICAL.md), nothing validated
   for a real installation.
+
+# Stage 9 — Structural Engineering Laboratory (19 Nov 2026)
+
+## 26. What changed
+
+- **Structural solver:** `backend/structure.py` — a real
+  direct-stiffness solver in pure Python stdlib. 3D truss
+  (axial only) and 3D Euler-Bernoulli beam elements (12 DOF),
+  Gaussian elimination with partial pivoting, consistent mass
+  matrices + lumped masses, Cholesky + cyclic Jacobi for the
+  generalised eigenproblem. Loads: point, distributed
+  (consistent nodal loads), self-weight, thermal (named error
+  when the material has no recorded α). Load cases and
+  combinations. Results: reactions, displacements, end forces,
+  11-station diagrams, stress / von Mises / utilisation,
+  Euler/Johnson member buckling, modal frequencies and shapes.
+  CalculiX, Code_Aster and Elmer were checked and are NOT
+  installed; this solver is the documented alternative.
+- **The torsion-restraint convention:** a straight beam line
+  with no torsional restraint anywhere is a rigid-body
+  mechanism and is refused as unstable; simple supports must
+  restrain torsion about the member axis. Zero-stiffness DOFs
+  (e.g. rotations at truss joints) are inactive and reported;
+  loads on them are errors. Documented in
+  `docs/STRUCTURAL.md`.
+- **Structural API:** `backend/app.py` `_route_structures` —
+  `GET /api/v1/structures/schema` (public),
+  `POST /api/v1/structures/validate` (auth),
+  `POST /api/v1/structures/analyze` (auth, owner-scoped
+  project; stores a simulation job with solver
+  structural_static / structural_modal / structural_buckling).
+  Plus `GET/PUT /api/v1/projects/{id}/structure` — the
+  structure document in the project payload, version-aware
+  (409 on stale base_version). Health stage is now 9.
+- **Structural solvers:** 6 analytical solvers in
+  `backend/solvers.py` (column_buckling, fixed_beam,
+  natural_frequency_beam, wind_load_is875, seismic_base_shear_is1893,
+  load_combination), all in the registry and the Stage 6 job
+  API. IS 875 and IS 1893 are formula calculators with
+  user-supplied factors, not code checks.
+- **Structural workspace:** `structural.html` +
+  `assets/js/structural.js` — editor (nodes, members, supports
+  with presets, loads, combinations), Three.js 3D view
+  (colour by material/utilisation, deformed shape, load
+  arrows, support markers, click-to-select with axial/shear/
+  moment diagrams), analysis tab (static/modal/buckling,
+  reactions, member results, modal animation, jobs),
+  calculations tab, standards tab, AI assistant (reads only
+  real results), report tab (HTML report, member CSV,
+  print-to-PDF), import from the project's 3D model.
+- **Demo structures:** `workspace/test-structures/` — SS beam,
+  cantilever, 2D truss, portal frame, truss bridge, column
+  buckling. All validate and analyse to their references.
+- **Tests:** `backend/test_stage9.py` 80/80. Stages 2–8
+  suites still green (health assertions accept stage 9).
+- **Limits, stated in the UI and docs:** first-order,
+  linear-elastic only — no P-delta, no system buckling, no
+  plate/shell/solid FEA, no code compliance (IS 800 / IS 456 /
+  AISC / Eurocodes not implemented), no connection or
+  foundation design, nothing validated for construction.

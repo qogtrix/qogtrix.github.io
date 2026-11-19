@@ -63,7 +63,7 @@ def main():
     try:
         # --- health + categories ---
         s, h = req(base, "GET", "/health")
-        check("health endpoint (stage 4)", s == 200 and h.get("stage") in (4, 5, 6, 7, 8), f"HTTP {s}")
+        check("health endpoint (stage 4)", s == 200 and h.get("stage") in (4, 5, 6, 7, 8, 9), f"HTTP {s}")
         s, cats = req(base, "GET", "/api/v1/material-categories")
         check("10 material categories", s == 200 and len(cats["categories"]) == 10, f"got {len(cats.get('categories', []))}")
         check("category counts sum to 38",
