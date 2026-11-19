@@ -4,3 +4,8 @@
 # A FastAPI port remains possible later — the API contract in
 # api-spec.md is framework-neutral. No solver library is listed yet;
 # solver choice is a Stage 3 decision.
+# Deployment (₹0): libsql is the only dependency, and only for the
+# Turso-backed deployment. It lets the same SQLite SQL run against a
+# hosted libSQL database (embedded replica). Local runs and the
+# regression suite work without it.
+libsql==0.1.11

@@ -504,6 +504,10 @@ class Handler(BaseHTTPRequestHandler):
     # -- auth routes ---------------------------------------------------
     def _route_auth(self, path, method):
         if path == "/api/v1/auth/register" and method == "POST":
+            # Deployment: registration is closed while the lab is private.
+            # Set AIELAB_REGISTRATION=open to allow sign-ups again.
+            if os.environ.get("AIELAB_REGISTRATION", "open").lower() == "closed":
+                raise ApiError(403, "Registration is closed — this lab is private for now.")
             data = self._read_json()
             email = str(data.get("email", "")).strip().lower()
             username = str(data.get("username", "")).strip().lower()
@@ -2219,13 +2223,16 @@ def _comparison_table(mats):
 
 
 def main():
-    port = int(os.environ.get("AIELAB_PORT", "8001"))
+    # Render (and most hosts) inject PORT; AIELAB_PORT is the local override.
+    port = int(os.environ.get("PORT") or os.environ.get("AIELAB_PORT", "8001"))
     conn = dbmod.connect()
     dbmod.init_db(conn)
     conn.close()
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AI Engineering Laboratory API — Stage 7")
-    print(f"Listening on http://127.0.0.1:{port}  (health: /health)")
+    # 0.0.0.0: a hosted platform must reach the server from outside the
+    # container; localhost-only binding works for local dev too.
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    print("AI Engineering Laboratory API — Stage 11")
+    print(f"Listening on http://0.0.0.0:{port}  (health: /health)")
     print("Set AIELAB_SECRET in production; AIELAB_DB to change the database file.")
     try:
         server.serve_forever()

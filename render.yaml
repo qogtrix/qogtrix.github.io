@@ -1,0 +1,31 @@
+# Render blueprint — AI Engineering Laboratory backend (₹0 free tier).
+# In the Render dashboard: New → Blueprint → connect the
+# qogtrix/qogtrix.github.io repo. Render reads this file and creates
+# the service. No card is needed for the free plan.
+#
+# Secrets (never committed here):
+#   TURSO_DATABASE_URL / TURSO_AUTH_TOKEN — set in the Render dashboard
+#     after creating the free Turso database (Environment → Add).
+#   AIELAB_SECRET — generated once by Render (generateValue) and kept
+#     stable across deploys; all sessions depend on it.
+#   AIELAB_REGISTRATION — "closed" while the lab is private. Flip to
+#     "open" in the dashboard when public sign-ups are wanted.
+services:
+  - type: web
+    name: aielab-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python3 backend/app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: AIELAB_REGISTRATION
+        value: closed
+      - key: AIELAB_SECRET
+        generateValue: true
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

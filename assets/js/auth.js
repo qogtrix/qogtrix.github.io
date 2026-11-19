@@ -12,14 +12,23 @@
 
   async function api(method, path, body) {
     var res;
+    var wakeNote = null;
     try {
-      res = await fetch(apiBase() + path, {
+      var doFetch = window.aielabFetchWithWake || fetch;
+      res = await doFetch(apiBase() + path, {
         method: method,
         headers: { 'Content-Type': 'application/json', 'Authorization': token() ? 'Bearer ' + token() : '' },
         body: body === undefined ? undefined : JSON.stringify(body)
+      }, function (attempt) {
+        // The free-tier backend sleeps when idle; tell the user why the
+        // request is taking a moment instead of showing a bare error.
+        wakeNote = 'Waking the server (free tier sleeps when idle) — retry ' + attempt + '…';
+        var el = document.getElementById('auth-error');
+        if (el) { el.style.display = 'block'; el.textContent = wakeNote; }
       });
     } catch (e) {
-      throw new Error('Cannot reach the backend at ' + apiBase() + '. Start it with: cd backend && python3 app.py — ' + e.message);
+      throw new Error('Cannot reach the backend at ' + apiBase() + '. '
+        + 'If this is the hosted site, the free server may be waking up — wait a minute and try again. — ' + e.message);
     }
     var data = {};
     try { data = await res.json(); } catch (e) { /* empty body */ }
